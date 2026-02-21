@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<foldermix>
+  <header>
+    <root>__ROOT__</root>
+    <generated_at>2024-01-02T00:00:00+00:00</generated_at>
+    <version>0.1.0</version>
+    <file_count>3</file_count>
+    <total_bytes>32</total_bytes>
+  </header>
+  <files>
+    <file>
+      <path>alpha.md</path>
+      <size>8</size>
+      <mtime>2024-01-01T00:00:00+00:00</mtime>
+      <converter>text</converter>
+      <content><![CDATA[# Alpha
+]]></content>
+    </file>
+    <file>
+      <path>code.py</path>
+      <size>12</size>
+      <mtime>2024-01-01T00:00:00+00:00</mtime>
+      <converter>text</converter>
+      <content><![CDATA[print('hi')
+]]></content>
+    </file>
+    <file>
+      <path>nested/note.txt</path>
+      <size>12</size>
+      <mtime>2024-01-01T00:00:00+00:00</mtime>
+      <converter>text</converter>
+      <content><![CDATA[line1
+line2
+]]></content>
+    </file>
+  </files>
+</foldermix>

@@ -163,3 +163,24 @@ def test_pack_keeps_deterministic_order_after_parallel_conversion(
     packer.pack(config)
 
     assert captured_order == ["a.txt", "b.txt"]
+
+
+@pytest.mark.xfail(
+    reason="include_toc is accepted in config but not applied by markdown output flow yet",
+    strict=True,
+)
+def test_pack_include_toc_false_omits_table_of_contents(tmp_path: Path) -> None:
+    _write(tmp_path / "a.txt", "hello\n")
+    out_path = tmp_path / "out.md"
+    config = PackConfig(
+        root=tmp_path,
+        out=out_path,
+        format="md",
+        include_toc=False,
+        include_sha256=False,
+        workers=1,
+    )
+
+    packer.pack(config)
+    output = out_path.read_text(encoding="utf-8")
+    assert "Table of Contents" not in output
