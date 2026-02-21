@@ -70,7 +70,7 @@ class MarkdownWriter(Writer):
 
         out.write("---\n\n")
 
-        for item in items:
+        for idx, item in enumerate(items):
             anchor = _make_anchor(item.relpath)
             out.write(f"## {item.relpath} {{#{anchor}}}\n\n")
             out.write(f"- **Size**: {item.size_bytes:,} bytes\n")
@@ -95,4 +95,7 @@ class MarkdownWriter(Writer):
             if not content.endswith("\n"):
                 out.write("\n")
             out.write("```\n\n")
-            out.write("---\n\n")
+            if idx < len(items) - 1:
+                out.write("---\n\n")
+            else:
+                out.write("---\n")

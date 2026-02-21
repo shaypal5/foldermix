@@ -10,7 +10,8 @@ from foldermix import utils
 
 def test_sha256_file(tmp_path: Path) -> None:
     path = tmp_path / "data.txt"
-    path.write_text("hello\n", encoding="utf-8")
+    # Write bytes directly so LF/CRLF translation cannot affect hash expectations.
+    path.write_bytes(b"hello\n")
     expected = hashlib.sha256(b"hello\n").hexdigest()
     assert utils.sha256_file(path) == expected
 
