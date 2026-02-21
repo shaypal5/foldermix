@@ -28,7 +28,9 @@ def test_convert_record_without_converter(tmp_path: Path) -> None:
     path = tmp_path / "a.unknown"
     path.write_text("raw", encoding="utf-8")
     record = FileRecord(path=path, relpath="a.unknown", ext=".unknown", size=3, mtime=0.0)
-    item = packer._convert_record(record, _RegistryNone(), PackConfig(root=tmp_path, include_sha256=False))
+    item = packer._convert_record(
+        record, _RegistryNone(), PackConfig(root=tmp_path, include_sha256=False)
+    )
     assert item.converter_name == "none"
     assert item.content == "[No converter available for .unknown]"
 
@@ -63,13 +65,7 @@ def test_convert_record_applies_frontmatter_redaction_and_crlf(tmp_path: Path) -
     class _Conv:
         @staticmethod
         def convert(_p: Path, encoding: str = "utf-8") -> ConversionResult:
-            content = (
-                "---\n"
-                "title: test\n"
-                "---\n"
-                "mail test@example.com\n"
-                "call +1 (555) 123-4567\n"
-            )
+            content = "---\ntitle: test\n---\nmail test@example.com\ncall +1 (555) 123-4567\n"
             return ConversionResult(content=content, converter_name="fake")
 
     config = PackConfig(

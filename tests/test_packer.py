@@ -150,7 +150,9 @@ def test_pack_keeps_deterministic_order_after_parallel_conversion(
             captured_order.extend(item.relpath for item in items)
             out.write("ok\n")
 
-    monkeypatch.setattr(packer, "_build_registry", lambda: _SingleConverterRegistry(_SlowConverter()))
+    monkeypatch.setattr(
+        packer, "_build_registry", lambda: _SingleConverterRegistry(_SlowConverter())
+    )
     monkeypatch.setattr(packer, "_get_writer", lambda *args, **kwargs: _CaptureWriter())
 
     config = PackConfig(
