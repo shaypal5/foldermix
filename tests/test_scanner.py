@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from folderpack.config import PackConfig
-from folderpack.scanner import scan
+from foldermix.config import PackConfig
+from foldermix.scanner import scan
 
 
 def test_basic_scan(sample_dir: Path) -> None:

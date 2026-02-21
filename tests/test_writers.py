@@ -4,10 +4,10 @@ import json
 import xml.etree.ElementTree as ET
 from io import StringIO
 
-from folderpack.writers.base import FileBundleItem, HeaderInfo
-from folderpack.writers.jsonl_writer import JsonlWriter
-from folderpack.writers.markdown_writer import MarkdownWriter
-from folderpack.writers.xml_writer import XmlWriter
+from foldermix.writers.base import FileBundleItem, HeaderInfo
+from foldermix.writers.jsonl_writer import JsonlWriter
+from foldermix.writers.markdown_writer import MarkdownWriter
+from foldermix.writers.xml_writer import XmlWriter
 
 
 def make_header() -> HeaderInfo:
@@ -102,7 +102,7 @@ class TestXmlWriter:
         writer.write(buf, make_header(), make_items())
         output = buf.getvalue()
         root = ET.fromstring(output)
-        assert root.tag == "folderpack"
+        assert root.tag == "foldermix"
 
     def test_file_elements(self) -> None:
         writer = XmlWriter()

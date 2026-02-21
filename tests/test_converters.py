@@ -4,8 +4,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from folderpack.converters.base import ConversionResult, ConverterRegistry
-from folderpack.converters.text import TextConverter
+from foldermix.converters.base import ConversionResult, ConverterRegistry
+from foldermix.converters.text import TextConverter
 
 
 class TestTextConverter:
@@ -76,14 +76,14 @@ class TestConverterRegistry:
 
 class TestMarkitdownConverter:
     def test_can_convert_returns_false_when_not_installed(self) -> None:
-        from folderpack.converters.markitdown_conv import MarkitdownConverter
+        from foldermix.converters.markitdown_conv import MarkitdownConverter
 
         converter = MarkitdownConverter()
         with patch.dict(sys.modules, {"markitdown": None}):
             assert converter.can_convert(".pdf") is False
 
     def test_can_convert_returns_true_when_installed(self) -> None:
-        from folderpack.converters.markitdown_conv import MarkitdownConverter
+        from foldermix.converters.markitdown_conv import MarkitdownConverter
 
         mock_markitdown = MagicMock()
         converter = MarkitdownConverter()
@@ -91,7 +91,7 @@ class TestMarkitdownConverter:
             assert converter.can_convert(".pdf") is True
 
     def test_supported_extensions(self) -> None:
-        from folderpack.converters.markitdown_conv import MarkitdownConverter
+        from foldermix.converters.markitdown_conv import MarkitdownConverter
 
         conv = MarkitdownConverter()
         mock_mod = MagicMock()
@@ -105,14 +105,14 @@ class TestMarkitdownConverter:
 
 class TestPdfFallbackConverter:
     def test_can_convert_returns_false_when_not_installed(self) -> None:
-        from folderpack.converters.pdf_fallback import PdfFallbackConverter
+        from foldermix.converters.pdf_fallback import PdfFallbackConverter
 
         converter = PdfFallbackConverter()
         with patch.dict(sys.modules, {"pypdf": None}):
             assert converter.can_convert(".pdf") is False
 
     def test_can_convert_pdf(self) -> None:
-        from folderpack.converters.pdf_fallback import PdfFallbackConverter
+        from foldermix.converters.pdf_fallback import PdfFallbackConverter
 
         converter = PdfFallbackConverter()
         mock_pypdf = MagicMock()
@@ -120,7 +120,7 @@ class TestPdfFallbackConverter:
             assert converter.can_convert(".pdf") is True
 
     def test_cannot_convert_non_pdf(self) -> None:
-        from folderpack.converters.pdf_fallback import PdfFallbackConverter
+        from foldermix.converters.pdf_fallback import PdfFallbackConverter
 
         converter = PdfFallbackConverter()
         mock_pypdf = MagicMock()

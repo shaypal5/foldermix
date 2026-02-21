@@ -9,7 +9,7 @@ from .base import FileBundleItem, HeaderInfo, Writer
 class XmlWriter(Writer):
     def write(self, out: IO[str], header: HeaderInfo, items: list[FileBundleItem]) -> None:
         out.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-        out.write("<folderpack>\n")
+        out.write("<foldermix>\n")
         out.write("  <header>\n")
         out.write(f"    <root>{saxutils.escape(header.root)}</root>\n")
         out.write(f"    <generated_at>{header.generated_at}</generated_at>\n")
@@ -34,4 +34,4 @@ class XmlWriter(Writer):
             out.write("    </file>\n")
 
         out.write("  </files>\n")
-        out.write("</folderpack>\n")
+        out.write("</foldermix>\n")

@@ -228,7 +228,7 @@ def pack(config: PackConfig) -> None:
         from datetime import datetime, timezone
 
         ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        out_path = Path(f"folderpack_{ts}.{ext_map[config.format]}")
+        out_path = Path(f"foldermix_{ts}.{ext_map[config.format]}")
 
     console.print(f"Writing to [bold]{out_path}[/bold] ...")
 

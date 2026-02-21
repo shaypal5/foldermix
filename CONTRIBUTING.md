@@ -20,5 +20,5 @@ ruff format .
 
 ```bash
 pytest -q
-pytest --cov=folderpack tests/
+pytest --cov=foldermix tests/
 ```

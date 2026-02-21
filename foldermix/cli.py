@@ -9,7 +9,7 @@ from . import __version__
 from .config import DEFAULT_EXCLUDE_DIRS, DEFAULT_EXCLUDE_EXT, PackConfig
 
 app = typer.Typer(
-    name="folderpack",
+    name="foldermix",
     help="Pack a folder into a single LLM-friendly context file.",
     add_completion=False,
 )
@@ -169,7 +169,7 @@ def stats_cmd(
 @app.command("version")
 def version_cmd() -> None:
     """Print the version."""
-    console.print(f"folderpack {__version__}")
+    console.print(f"foldermix {__version__}")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# folderpack
+# foldermix
 
 **Pack a folder into a single LLM-friendly context file.**
 
@@ -7,36 +7,36 @@
 ## Installation
 
 ```bash
-pip install folderpack
+pip install foldermix
 # With optional extras:
-pip install "folderpack[all]"   # adds PDF, Office, tqdm
-pip install "folderpack[pdf]"   # pypdf only
-pip install "folderpack[office]" # docx/xlsx/pptx support
+pip install "foldermix[all]"   # adds PDF, Office, tqdm
+pip install "foldermix[pdf]"   # pypdf only
+pip install "foldermix[office]" # docx/xlsx/pptx support
 ```
 
 ## Quick Start
 
 ```bash
 # Pack current directory to markdown
-folderpack pack .
+foldermix pack .
 
 # Pack to XML format
-folderpack pack . --format xml
+foldermix pack . --format xml
 
 # Pack to JSONL format
-folderpack pack . --format jsonl --out context.jsonl
+foldermix pack . --format jsonl --out context.jsonl
 
 # Dry run - list files without packing
-folderpack pack . --dry-run
+foldermix pack . --dry-run
 
 # List files that would be included
-folderpack list .
+foldermix list .
 
 # Show statistics
-folderpack stats .
+foldermix stats .
 
 # Show version
-folderpack version
+foldermix version
 ```
 
 ## Features
@@ -53,7 +53,7 @@ folderpack version
 ## Options
 
 ```
-folderpack pack [OPTIONS] [PATH]
+foldermix pack [OPTIONS] [PATH]
 
 Options:
   -o, --out PATH                Output file path

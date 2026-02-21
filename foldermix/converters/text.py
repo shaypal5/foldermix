@@ -71,7 +71,7 @@ class TextConverter:
         return ext.lower() in TEXT_EXTENSIONS
 
     def convert(self, path: Path, encoding: str = "utf-8") -> ConversionResult:
-        from folderpack.utils import read_text_with_fallback
+        from foldermix.utils import read_text_with_fallback
 
         text, enc_used = read_text_with_fallback(path, encoding)
         warnings: list[str] = []

@@ -2,7 +2,7 @@
 
 ## Sensitive File Handling
 
-folderpack automatically skips the following sensitive file patterns:
+foldermix automatically skips the following sensitive file patterns:
 - `.env` - Environment variable files
 - `*.pem`, `*.key` - SSL/TLS certificates and keys
 - `id_rsa`, `id_dsa` - SSH private keys

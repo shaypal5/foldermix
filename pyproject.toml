@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "folderpack"
+name = "foldermix"
 version = "0.1.0"
 description = "Pack a folder into a single LLM-friendly context file"
 readme = "README.md"
@@ -31,10 +31,10 @@ all = [
 dev = ["pytest>=7.0", "pytest-cov", "ruff>=0.4"]
 
 [project.scripts]
-folderpack = "folderpack.cli:app"
+foldermix = "foldermix.cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["folderpack"]
+packages = ["foldermix"]
 
 [tool.ruff]
 line-length = 100
