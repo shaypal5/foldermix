@@ -4,8 +4,12 @@ import os
 import shutil
 from pathlib import Path
 
+import pytest
+
 from foldermix import packer
 from foldermix.config import PackConfig
+
+pytestmark = pytest.mark.integration
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 FIXED_MTIME = 1704067200  # 2024-01-01T00:00:00+00:00

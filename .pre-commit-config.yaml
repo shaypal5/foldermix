@@ -25,3 +25,12 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
+
+  # Fast local test check (excludes integration/slow suites)
+  - repo: local
+    hooks:
+      - id: pytest-fast
+        name: pytest-fast
+        entry: python -m pytest -m "not integration and not slow" -o addopts="-vv -ra --strict-markers --strict-config"
+        language: system
+        pass_filenames: false

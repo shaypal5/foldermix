@@ -1,7 +1,8 @@
 name: CI
 on: [push, pull_request]
+
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -9,10 +10,91 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: Install dependencies
         run: pip install -e ".[dev,all]"
       - name: Lint
         run: ruff check . && ruff format --check .
-      - name: Test
-        run: pytest -q
+
+  smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: pip install -e ".[dev,all]"
+      - name: Unit Smoke Tests (No Integration/Slow)
+        run: python -m pytest -m "not integration and not slow" -o addopts="-vv -ra --strict-markers --strict-config"
+
+  minimal-deps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install core + dev dependencies (no optional extras)
+        run: pip install -e ".[dev]"
+      - name: Core Behavior Tests (No Integration/Slow)
+        run: >
+          python -m pytest
+          tests/test_cli.py
+          tests/test_converters.py
+          tests/test_converters_fallback.py
+          tests/test_packer.py
+          tests/test_packer_edges.py
+          tests/test_scanner.py
+          tests/test_scanner_edge.py
+          tests/test_utils.py
+          tests/test_writers.py
+          tests/test_writers_edge.py
+          -m "not integration and not slow"
+          -o addopts="-vv -ra --strict-markers --strict-config"
+
+  package-smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+      - name: Install wheel in clean venv and run CLI smoke test
+        run: |
+          python -m venv .pkg-smoke-venv
+          ./.pkg-smoke-venv/bin/pip install dist/*.whl
+          mkdir -p smoke_input
+          printf "hello\n" > smoke_input/a.txt
+          ./.pkg-smoke-venv/bin/foldermix version
+          ./.pkg-smoke-venv/bin/foldermix pack smoke_input --out smoke_output.md
+          test -f smoke_output.md
+
+  full:
+    runs-on: ubuntu-latest
+    needs: [lint, smoke, minimal-deps, package-smoke]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -e ".[dev,all]"
+      - name: Full Test Suite (Coverage Gate)
+        run: python -m pytest
