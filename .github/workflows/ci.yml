@@ -84,15 +84,69 @@ jobs:
         run: |
           python -m pip install --upgrade pip build
           python -m build
-      - name: Install wheel in clean venv and run CLI smoke test
+      - name: Install wheel in clean venv and run CLI black-box assertions
         run: |
+          set -euo pipefail
           python -m venv .pkg-smoke-venv
           ./.pkg-smoke-venv/bin/pip install dist/*.whl
+
+          assert_contains() {
+            haystack="$1"
+            needle="$2"
+            if ! printf "%s" "$haystack" | grep -Fq "$needle"; then
+              echo "Expected output to contain: $needle"
+              echo "Actual output:"
+              printf "%s\n" "$haystack"
+              exit 1
+            fi
+          }
+
+          run_expect() {
+            expected="$1"
+            shift
+            set +e
+            output="$("$@" 2>&1)"
+            status=$?
+            set -e
+            if [ "$status" -ne "$expected" ]; then
+              echo "Expected exit code $expected, got $status"
+              echo "Command: $*"
+              echo "Output:"
+              printf "%s\n" "$output"
+              exit 1
+            fi
+            printf "%s" "$output"
+          }
+
+          export NO_COLOR=1
+
           mkdir -p smoke_input
           printf "hello\n" > smoke_input/a.txt
-          ./.pkg-smoke-venv/bin/foldermix version
-          ./.pkg-smoke-venv/bin/foldermix pack smoke_input --out smoke_output.md
+
+          version_out="$(run_expect 0 ./.pkg-smoke-venv/bin/foldermix version)"
+          assert_contains "$version_out" "foldermix "
+
+          list_out="$(run_expect 0 ./.pkg-smoke-venv/bin/foldermix list smoke_input)"
+          assert_contains "$list_out" "a.txt"
+          assert_contains "$list_out" "1 files would be included, 0 skipped."
+
+          stats_out="$(run_expect 0 ./.pkg-smoke-venv/bin/foldermix stats smoke_input)"
+          assert_contains "$stats_out" "Included files: 1"
+          assert_contains "$stats_out" ".txt"
+
+          pack_out="$(run_expect 0 ./.pkg-smoke-venv/bin/foldermix pack smoke_input --out smoke_output.md)"
+          assert_contains "$pack_out" "Done!"
+          assert_contains "$pack_out" "smoke_output.md"
           test -f smoke_output.md
+
+          invalid_pack_out="$(run_expect 1 ./.pkg-smoke-venv/bin/foldermix pack smoke_input --format bad)"
+          assert_contains "$invalid_pack_out" "Invalid format"
+
+          invalid_list_out="$(run_expect 2 ./.pkg-smoke-venv/bin/foldermix list smoke_input --bad-flag)"
+          assert_contains "$invalid_list_out" "No such option"
+
+          invalid_stats_out="$(run_expect 2 ./.pkg-smoke-venv/bin/foldermix stats smoke_input --bad-flag)"
+          assert_contains "$invalid_stats_out" "No such option"
 
   full:
     runs-on: ubuntu-latest
