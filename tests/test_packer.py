@@ -106,7 +106,8 @@ def test_pack_continue_on_error_true_writes_error_item(tmp_path: Path, monkeypat
 
 
 def test_pack_writes_report_json(tmp_path: Path) -> None:
-    _write(tmp_path / "data.txt", "ok\n")
+    # Write bytes directly so expected size is stable across LF/CRLF platforms.
+    (tmp_path / "data.txt").write_bytes(b"ok\n")
     (tmp_path / "image.png").write_bytes(b"\x89PNG\r\n\x1a\n")
     out_path = tmp_path / "out.md"
     report_path = tmp_path / "report.json"

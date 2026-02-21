@@ -31,6 +31,8 @@ repos:
     hooks:
       - id: pytest-fast
         name: pytest-fast
-        entry: python -m pytest -m "not integration and not slow" -o addopts="-vv -ra --strict-markers --strict-config"
-        language: system
+        entry: pytest -m "not integration and not slow" -o addopts="-vv -ra --strict-markers --strict-config"
+        language: python
+        additional_dependencies:
+          - ".[dev]"
         pass_filenames: false
