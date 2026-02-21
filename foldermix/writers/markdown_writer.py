@@ -50,6 +50,9 @@ def _make_anchor(relpath: str) -> str:
 
 
 class MarkdownWriter(Writer):
+    def __init__(self, include_toc: bool = True) -> None:
+        self.include_toc = include_toc
+
     def write(self, out: IO[str], header: HeaderInfo, items: list[FileBundleItem]) -> None:
         out.write("# FolderPack Context\n\n")
         out.write(f"- **Root**: `{header.root}`\n")
@@ -58,7 +61,7 @@ class MarkdownWriter(Writer):
         out.write(f"- **Files**: {header.file_count}\n")
         out.write(f"- **Total bytes**: {header.total_bytes:,}\n\n")
 
-        if items:
+        if self.include_toc and items:
             out.write("## Table of Contents\n\n")
             for item in items:
                 anchor = _make_anchor(item.relpath)
@@ -67,7 +70,7 @@ class MarkdownWriter(Writer):
 
         out.write("---\n\n")
 
-        for item in items:
+        for idx, item in enumerate(items):
             anchor = _make_anchor(item.relpath)
             out.write(f"## {item.relpath} {{#{anchor}}}\n\n")
             out.write(f"- **Size**: {item.size_bytes:,} bytes\n")
@@ -92,4 +95,7 @@ class MarkdownWriter(Writer):
             if not content.endswith("\n"):
                 out.write("\n")
             out.write("```\n\n")
-            out.write("---\n\n")
+            if idx < len(items) - 1:
+                out.write("---\n\n")
+            else:
+                out.write("---\n")

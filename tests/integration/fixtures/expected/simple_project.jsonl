@@ -1,0 +1,4 @@
+{"type": "header", "root": "__ROOT__", "generated_at": "2024-01-02T00:00:00+00:00", "version": "0.1.0", "file_count": 3, "total_bytes": 32, "args": {}}
+{"type": "file", "path": "alpha.md", "ext": ".md", "size_bytes": 8, "mtime": "2024-01-01T00:00:00+00:00", "sha256": null, "converter": "text", "original_mime": "text/md", "warnings": [], "truncated": false, "content": "# Alpha\n"}
+{"type": "file", "path": "code.py", "ext": ".py", "size_bytes": 12, "mtime": "2024-01-01T00:00:00+00:00", "sha256": null, "converter": "text", "original_mime": "text/py", "warnings": [], "truncated": false, "content": "print(\"hi\")\n"}
+{"type": "file", "path": "nested/note.txt", "ext": ".txt", "size_bytes": 12, "mtime": "2024-01-01T00:00:00+00:00", "sha256": null, "converter": "text", "original_mime": "text/txt", "warnings": [], "truncated": false, "content": "line1\nline2\n"}

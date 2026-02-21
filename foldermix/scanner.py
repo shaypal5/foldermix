@@ -59,7 +59,7 @@ def scan(config: PackConfig) -> tuple[list[FileRecord], list[SkipRecord]]:
         gitignore_path = root / ".gitignore"
         if gitignore_path.exists():
             patterns = gitignore_path.read_text().splitlines()
-            gitignore_spec = pathspec.PathSpec.from_lines("gitwildmatch", patterns)
+            gitignore_spec = pathspec.PathSpec.from_lines("gitignore", patterns)
 
     # Determine include extensions
     include_exts: set[str] | None = None

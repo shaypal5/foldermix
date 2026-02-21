@@ -43,6 +43,16 @@ class TestTextConverter:
         result = converter.convert(f, encoding="utf-8")
         assert result.warnings == []
 
+    def test_convert_warns_on_encoding_fallback(self, monkeypatch, tmp_path: Path) -> None:
+        import foldermix.utils as utils
+
+        f = tmp_path / "simple.txt"
+        f.write_text("simple text")
+        monkeypatch.setattr(utils, "read_text_with_fallback", lambda *_: ("content", "latin-1"))
+        converter = TextConverter()
+        result = converter.convert(f, encoding="utf-8")
+        assert "Encoding fallback" in result.warnings[0]
+
 
 class TestConverterRegistry:
     def test_register_and_get(self) -> None:

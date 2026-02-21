@@ -37,12 +37,12 @@ def _build_registry() -> ConverterRegistry:
     return registry
 
 
-def _get_writer(fmt: str):
+def _get_writer(fmt: str, include_toc: bool = True):
     if fmt == "xml":
         return XmlWriter()
     if fmt == "jsonl":
         return JsonlWriter()
-    return MarkdownWriter()
+    return MarkdownWriter(include_toc=include_toc)
 
 
 def _convert_record(
@@ -151,7 +151,7 @@ def pack(config: PackConfig) -> None:
         return
 
     registry = _build_registry()
-    writer = _get_writer(config.format)
+    writer = _get_writer(config.format, include_toc=config.include_toc)
 
     # Convert files
     items: list[FileBundleItem] = []

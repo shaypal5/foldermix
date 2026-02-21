@@ -28,7 +28,7 @@ all = [
     "python-pptx>=0.6",
     "tqdm>=4.0",
 ]
-dev = ["pytest>=7.0", "pytest-cov", "ruff>=0.4"]
+dev = ["hypothesis>=6.0", "pytest>=7.0", "pytest-cov", "ruff>=0.4"]
 
 [project.scripts]
 foldermix = "foldermix.cli:app"
@@ -45,4 +45,12 @@ select = ["E", "F", "I", "UP"]
 ignore = ["E501"]
 
 [tool.pytest.ini_options]
+addopts = "-vv -ra --cov=foldermix --cov-branch --cov-report=term-missing:skip-covered --cov-fail-under=98"
+filterwarnings = ["error"]
+markers = [
+    "integration: end-to-end and snapshot-style tests",
+    "slow: slower tests that may be skipped in smoke runs",
+]
+strict_config = true
+strict_markers = true
 testpaths = ["tests"]
