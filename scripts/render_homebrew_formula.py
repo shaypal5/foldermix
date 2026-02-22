@@ -13,6 +13,7 @@ DESCRIPTION = "Pack a folder into a single LLM-friendly context file"
 HOMEPAGE = "https://github.com/shaypal5/foldermix"
 LICENSE = "MIT"
 HOMEBREW_PYTHON_FORMULA = "python@3.12"
+HOMEBREW_PYTHON_EXECUTABLE = "python3.12"
 
 
 def _retry_backoff_seconds(attempt: int) -> int:
@@ -89,7 +90,7 @@ def _render_formula(
         [
             "",
             "  def install",
-            f'    venv = virtualenv_create(libexec, "{HOMEBREW_PYTHON_FORMULA}")',
+            f'    venv = virtualenv_create(libexec, "{HOMEBREW_PYTHON_EXECUTABLE}")',
             "    # Do not vendor compiled sdists (like pydantic-core), which can",
             "    # force Rust/LLVM downloads. Let pip resolve platform wheels.",
             "    venv.pip_install_and_link buildpath",

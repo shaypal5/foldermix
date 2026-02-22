@@ -26,7 +26,7 @@ def test_render_formula_avoids_rust_and_vendored_resources() -> None:
     assert 'depends_on "python@3.12"' in formula
     assert 'depends_on "rust" => :build' not in formula
     assert 'resource "' not in formula
-    assert 'venv = virtualenv_create(libexec, "python@3.12")' in formula
+    assert 'venv = virtualenv_create(libexec, "python3.12")' in formula
     assert "venv.pip_install_and_link buildpath" in formula
     assert 'assert_match "foldermix #{version}"' in formula
 
