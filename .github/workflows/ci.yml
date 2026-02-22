@@ -178,6 +178,9 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: [full]
+    outputs:
+      should_publish: ${{ steps.release_guard.outputs.should_publish }}
+      version: ${{ steps.release_guard.outputs.version }}
     permissions:
       contents: read
       id-token: write
@@ -240,3 +243,57 @@ jobs:
       - name: Publish to PyPI
         if: steps.release_guard.outputs.should_publish == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  update-homebrew-tap:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.publish-pypi.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    needs: [publish-pypi]
+    permissions:
+      contents: read
+    env:
+      TAP_REPOSITORY: shaypal5/homebrew-tap
+      HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+    steps:
+      - name: Skip tap update (token not configured)
+        if: env.HOMEBREW_TAP_GITHUB_TOKEN == ''
+        run: echo "No HOMEBREW_TAP_GITHUB_TOKEN configured; skipping tap update."
+      - uses: actions/checkout@v4
+        if: env.HOMEBREW_TAP_GITHUB_TOKEN != ''
+      - uses: actions/setup-python@v6
+        if: env.HOMEBREW_TAP_GITHUB_TOKEN != ''
+        with:
+          python-version: "3.12"
+      - name: Render Homebrew formula from published version
+        if: env.HOMEBREW_TAP_GITHUB_TOKEN != ''
+        run: |
+          python scripts/render_homebrew_formula.py \
+            --version "${{ needs.publish-pypi.outputs.version }}" \
+            --output /tmp/foldermix.rb
+      - name: Checkout tap repository
+        if: env.HOMEBREW_TAP_GITHUB_TOKEN != ''
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TAP_REPOSITORY }}
+          token: ${{ env.HOMEBREW_TAP_GITHUB_TOKEN }}
+          path: homebrew-tap
+      - name: Update tap formula and push
+        if: env.HOMEBREW_TAP_GITHUB_TOKEN != ''
+        run: |
+          set -euo pipefail
+          mkdir -p homebrew-tap/Formula
+          cp /tmp/foldermix.rb homebrew-tap/Formula/foldermix.rb
+
+          cd homebrew-tap
+          if git diff --quiet -- Formula/foldermix.rb; then
+            echo "Formula unchanged; nothing to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/foldermix.rb
+          git commit -m "foldermix ${{ needs.publish-pypi.outputs.version }}"
+          git push

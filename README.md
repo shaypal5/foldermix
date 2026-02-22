@@ -14,6 +14,13 @@ pip install "foldermix[pdf]"   # pypdf only
 pip install "foldermix[office]" # docx/xlsx/pptx support
 ```
 
+### Homebrew (macOS/Linux)
+
+```bash
+brew tap shaypal5/tap
+brew install foldermix
+```
+
 ## Quick Start
 
 ```bash
