@@ -22,3 +22,11 @@ ruff format .
 pytest -q
 pytest --cov=foldermix tests/
 ```
+
+## Mutation Test (Batch 4)
+
+```bash
+pip install -e ".[dev,all]"
+python -m mutmut run
+python -m mutmut results
+```

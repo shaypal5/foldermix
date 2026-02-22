@@ -28,7 +28,7 @@ all = [
     "python-pptx>=0.6",
     "tqdm>=4.0",
 ]
-dev = ["hypothesis>=6.0", "pytest>=7.0", "pytest-cov", "ruff>=0.4"]
+dev = ["hypothesis>=6.0", "mutmut>=2.4", "pytest>=7.0", "pytest-cov", "ruff>=0.4"]
 
 [project.scripts]
 foldermix = "foldermix.cli:app"
@@ -54,3 +54,15 @@ markers = [
 strict_config = true
 strict_markers = true
 testpaths = ["tests"]
+
+[tool.mutmut]
+paths_to_mutate = [
+    "foldermix/scanner.py",
+    "foldermix/packer.py",
+    "foldermix/writers/base.py",
+    "foldermix/writers/markdown_writer.py",
+    "foldermix/writers/xml_writer.py",
+    "foldermix/writers/jsonl_writer.py",
+]
+runner = "python -m pytest tests/test_scanner.py tests/test_scanner_edge.py tests/test_scanner_properties.py tests/test_packer.py tests/test_packer_edges.py tests/test_writers.py tests/test_writers_edge.py -q"
+tests_dir = ["tests"]
