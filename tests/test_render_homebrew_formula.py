@@ -15,33 +15,19 @@ def _load_renderer_module():
     return module
 
 
-def test_normalize_name() -> None:
-    module = _load_renderer_module()
-    assert module._normalize_name("Pydantic_Core") == "pydantic-core"
-    assert module._normalize_name("typing.extensions") == "typing-extensions"
-
-
-def test_render_formula_includes_resources_and_rust_when_needed() -> None:
+def test_render_formula_avoids_rust_and_vendored_resources() -> None:
     module = _load_renderer_module()
     formula = module._render_formula(
         package_version="0.1.1",
         package_url="https://files.pythonhosted.org/foldermix-0.1.1.tar.gz",
         package_sha256="abc123",
-        resources=[
-            (
-                "annotated-types",
-                "https://files.pythonhosted.org/annotated-types-0.7.0.tar.gz",
-                "r1",
-            ),
-            ("pydantic-core", "https://files.pythonhosted.org/pydantic-core-2.41.5.tar.gz", "r2"),
-        ],
-        needs_rust=True,
     )
 
     assert 'depends_on "python@3.12"' in formula
-    assert 'depends_on "rust" => :build' in formula
-    assert 'resource "annotated-types" do' in formula
-    assert 'resource "pydantic-core" do' in formula
+    assert 'depends_on "rust" => :build' not in formula
+    assert 'resource "' not in formula
+    assert 'venv = virtualenv_create(libexec, "python@3.12")' in formula
+    assert "venv.pip_install_and_link buildpath" in formula
     assert 'assert_match "foldermix #{version}"' in formula
 
 
@@ -94,35 +80,3 @@ def test_fetch_http_500_failure_mentions_url(monkeypatch) -> None:
         assert "HTTP 500" in text
     else:
         raise AssertionError("Expected RuntimeError")
-
-
-def test_resolve_runtime_deps_installs_local_project(monkeypatch, tmp_path: Path) -> None:
-    module = _load_renderer_module()
-    project_root = tmp_path / "project"
-    project_root.mkdir()
-
-    commands: list[list[str]] = []
-
-    def fake_run(cmd: list[str]) -> str:
-        commands.append(cmd)
-        if cmd[-2:] == ["freeze", "--all"]:
-            return "\n".join(
-                [
-                    "foldermix==0.1.2",
-                    "rich==14.3.3",
-                    "pathspec==1.0.4",
-                    "pip==25.0.0",
-                ]
-            )
-        return ""
-
-    monkeypatch.setattr(module, "_run", fake_run)
-    monkeypatch.setattr(module.sys, "executable", "/usr/bin/python3")
-
-    deps = module._resolve_runtime_deps(project_root)
-
-    assert ("pathspec", "1.0.4") in deps
-    assert ("rich", "14.3.3") in deps
-    assert ("foldermix", "0.1.2") not in deps
-    assert any(len(cmd) >= 3 and cmd[1:3] == ["-m", "venv"] for cmd in commands)
-    assert any(str(project_root) in cmd for cmd in commands)

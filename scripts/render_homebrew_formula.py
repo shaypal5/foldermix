@@ -3,10 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
-import subprocess
-import sys
-import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -17,21 +13,6 @@ DESCRIPTION = "Pack a folder into a single LLM-friendly context file"
 HOMEPAGE = "https://github.com/shaypal5/foldermix"
 LICENSE = "MIT"
 HOMEBREW_PYTHON_FORMULA = "python@3.12"
-
-SKIP_FREEZE_PACKAGES = {
-    "foldermix",
-    "pip",
-    "setuptools",
-    "wheel",
-}
-
-
-def _normalize_name(name: str) -> str:
-    return re.sub(r"[-_.]+", "-", name).lower()
-
-
-def _run(cmd: list[str]) -> str:
-    return subprocess.check_output(cmd, text=True).strip()
 
 
 def _retry_backoff_seconds(attempt: int) -> int:
@@ -85,48 +66,10 @@ def _fetch_pypi_release_file(package: str, version: str, retries: int = 8) -> tu
     )
 
 
-def _resolve_runtime_deps(project_root: Path) -> list[tuple[str, str]]:
-    project_root = project_root.resolve()
-    with tempfile.TemporaryDirectory(prefix="foldermix-brew-") as tmp:
-        venv_dir = Path(tmp) / "venv"
-        python = Path(sys.executable)
-        _run([str(python), "-m", "venv", str(venv_dir)])
-
-        if sys.platform == "win32":
-            pip = venv_dir / "Scripts" / "pip.exe"
-        else:
-            pip = venv_dir / "bin" / "pip"
-
-        _run([str(pip), "install", "--disable-pip-version-check", "--upgrade", "pip"])
-        # Resolve dependency versions from the current release commit source tree.
-        _run([str(pip), "install", "--disable-pip-version-check", str(project_root)])
-        freeze = _run([str(pip), "freeze", "--all"])
-
-    resolved: dict[str, tuple[str, str]] = {}
-    for line in freeze.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or line.startswith("-e "):
-            continue
-        if "@" in line:
-            # Skip direct URL/editable lines for robustness.
-            continue
-        if "==" not in line:
-            continue
-        name, dep_version = line.split("==", 1)
-        norm = _normalize_name(name)
-        if norm in SKIP_FREEZE_PACKAGES:
-            continue
-        resolved[norm] = (name, dep_version)
-
-    return [resolved[key] for key in sorted(resolved)]
-
-
 def _render_formula(
     package_version: str,
     package_url: str,
     package_sha256: str,
-    resources: list[tuple[str, str, str]],
-    needs_rust: bool,
 ) -> str:
     lines = [
         "class Foldermix < Formula",
@@ -142,29 +85,14 @@ def _render_formula(
         f'  depends_on "{HOMEBREW_PYTHON_FORMULA}"',
     ]
 
-    if needs_rust:
-        lines.append('  depends_on "rust" => :build')
-
-    if resources:
-        lines.append("")
-
-    for index, (resource_name, resource_url, resource_sha) in enumerate(resources):
-        lines.extend(
-            [
-                f'  resource "{resource_name}" do',
-                f'    url "{resource_url}"',
-                f'    sha256 "{resource_sha}"',
-                "  end",
-            ]
-        )
-        if index != len(resources) - 1:
-            lines.append("")
-
     lines.extend(
         [
             "",
             "  def install",
-            "    virtualenv_install_with_resources",
+            f'    venv = virtualenv_create(libexec, "{HOMEBREW_PYTHON_FORMULA}")',
+            "    # Do not vendor compiled sdists (like pydantic-core), which can",
+            "    # force Rust/LLVM downloads. Let pip resolve platform wheels.",
+            "    venv.pip_install_and_link buildpath",
             "  end",
             "",
             "  test do",
@@ -192,24 +120,11 @@ def main() -> int:
     args = parser.parse_args()
 
     package_url, package_sha = _fetch_pypi_release_file("foldermix", args.version)
-    project_root = Path(__file__).resolve().parents[1]
-    runtime_deps = _resolve_runtime_deps(project_root)
-
-    resources: list[tuple[str, str, str]] = []
-    needs_rust = False
-    for package_name, package_version in runtime_deps:
-        resource_url, resource_sha = _fetch_pypi_release_file(package_name, package_version)
-        normalized = _normalize_name(package_name)
-        if normalized == "pydantic-core":
-            needs_rust = True
-        resources.append((normalized, resource_url, resource_sha))
 
     output = _render_formula(
         package_version=args.version,
         package_url=package_url,
         package_sha256=package_sha,
-        resources=resources,
-        needs_rust=needs_rust,
     )
 
     output_path = Path(args.output)
