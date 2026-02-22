@@ -1,0 +1,29 @@
+name: Performance Smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * 0" # Weekly on Sunday at 09:00 UTC
+
+jobs:
+  perf-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      FOLDERMIX_RUN_PERF_SMOKE: "1"
+      FOLDERMIX_PERF_FILE_COUNT: "1500"
+      FOLDERMIX_PERF_MAX_SECONDS: "25"
+      FOLDERMIX_PERF_MAX_PEAK_MB: "256"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,all]"
+      - name: Run perf smoke test
+        run: python -m pytest tests/test_perf_smoke.py -q -o addopts=

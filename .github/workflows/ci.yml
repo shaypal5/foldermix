@@ -68,6 +68,7 @@ jobs:
           tests/test_packer_edges.py
           tests/test_scanner.py
           tests/test_scanner_edge.py
+          tests/test_snapshot_guard.py
           tests/test_utils.py
           tests/test_writers.py
           tests/test_writers_edge.py
