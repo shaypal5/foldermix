@@ -44,10 +44,12 @@ def test_pack_large_tree_performance_smoke(tmp_path: Path) -> None:
 
     tracemalloc.start()
     start = time.perf_counter()
-    packer.pack(config)
-    elapsed = time.perf_counter() - start
-    _, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
+    try:
+        packer.pack(config)
+        elapsed = time.perf_counter() - start
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
 
     report = json.loads(report_path.read_text(encoding="utf-8"))
     assert report["included_count"] == file_count

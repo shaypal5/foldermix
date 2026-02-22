@@ -64,5 +64,5 @@ paths_to_mutate = [
     "foldermix/writers/xml_writer.py",
     "foldermix/writers/jsonl_writer.py",
 ]
-runner = "python -m pytest tests/test_scanner.py tests/test_scanner_edge.py tests/test_scanner_properties.py tests/test_packer.py tests/test_packer_edges.py tests/test_writers.py tests/test_writers_edge.py -q"
+runner = "python -m pytest -q -o addopts= tests/test_scanner.py tests/test_scanner_edge.py tests/test_scanner_properties.py tests/test_packer.py tests/test_packer_edges.py tests/test_writers.py tests/test_writers_edge.py"
 tests_dir = ["tests"]
