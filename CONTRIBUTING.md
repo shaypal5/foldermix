@@ -26,7 +26,7 @@ pytest --cov=foldermix tests/
 ## Mutation Test (Batch 4)
 
 ```bash
-pip install -e ".[dev,all]"
+pip install -e ".[dev,mutation,all]"
 python -m mutmut run
 python -m mutmut results
 ```
