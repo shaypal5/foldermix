@@ -16,6 +16,7 @@ from pathlib import Path
 DESCRIPTION = "Pack a folder into a single LLM-friendly context file"
 HOMEPAGE = "https://github.com/shaypal5/foldermix"
 LICENSE = "MIT"
+HOMEBREW_PYTHON_FORMULA = "python@3.12"
 
 SKIP_FREEZE_PACKAGES = {
     "foldermix",
@@ -33,6 +34,10 @@ def _run(cmd: list[str]) -> str:
     return subprocess.check_output(cmd, text=True).strip()
 
 
+def _retry_backoff_seconds(attempt: int) -> int:
+    return min(60, 3 * attempt)
+
+
 def _fetch_pypi_release_file(package: str, version: str, retries: int = 8) -> tuple[str, str]:
     encoded_package = urllib.parse.quote(package)
     encoded_version = urllib.parse.quote(version)
@@ -48,29 +53,36 @@ def _fetch_pypi_release_file(package: str, version: str, retries: int = 8) -> tu
         except urllib.error.HTTPError as exc:
             if exc.code == 404 and attempt < retries:
                 # PyPI metadata can lag briefly right after publish.
-                time.sleep(5)
+                time.sleep(_retry_backoff_seconds(attempt))
+                continue
+            if (500 <= exc.code < 600 or exc.code == 429) and attempt < retries:
+                # Retry on transient server errors and rate limiting.
+                time.sleep(_retry_backoff_seconds(attempt))
                 continue
             raise RuntimeError(
-                f"Failed to fetch PyPI metadata for {package}=={version}: {exc}"
+                f"Failed to fetch PyPI metadata for {package}=={version} from {url}: "
+                f"HTTP {exc.code}: {exc}"
             ) from exc
         except urllib.error.URLError as exc:
             if attempt < retries:
-                time.sleep(3)
+                time.sleep(_retry_backoff_seconds(attempt))
                 continue
             raise RuntimeError(
-                f"Failed to fetch PyPI metadata for {package}=={version}: {exc}"
+                f"Failed to fetch PyPI metadata for {package}=={version} from {url}: {exc}"
             ) from exc
 
         files = payload.get("urls", [])
         sdist = next((f for f in files if f.get("packagetype") == "sdist"), None)
         if not sdist:
-            raise RuntimeError(f"No sdist found on PyPI for {package}=={version}")
+            raise RuntimeError(f"No sdist found on PyPI for {package}=={version} from {url}")
 
         file_url = sdist["url"]
         sha256 = sdist["digests"]["sha256"]
         return file_url, sha256
 
-    raise RuntimeError(f"Unable to fetch metadata for {package}=={version}")
+    raise RuntimeError(
+        f"Unable to fetch metadata for {package}=={version} from {url} after {retries} attempts"
+    )
 
 
 def _resolve_runtime_deps(version: str) -> list[tuple[str, str]]:
@@ -112,7 +124,6 @@ def _render_formula(
     package_url: str,
     package_sha256: str,
     resources: list[tuple[str, str, str]],
-    python_formula: str,
     needs_rust: bool,
 ) -> str:
     lines = [
@@ -126,7 +137,7 @@ def _render_formula(
         f'  license "{LICENSE}"',
         f'  version "{package_version}"',
         "",
-        f'  depends_on "{python_formula}"',
+        f'  depends_on "{HOMEBREW_PYTHON_FORMULA}"',
     ]
 
     if needs_rust:
@@ -176,11 +187,6 @@ def main() -> int:
         default="packaging/homebrew/foldermix.rb",
         help="Output path for rendered formula",
     )
-    parser.add_argument(
-        "--python-formula",
-        default="python@3.12",
-        help="Homebrew python formula dependency",
-    )
     args = parser.parse_args()
 
     package_url, package_sha = _fetch_pypi_release_file("foldermix", args.version)
@@ -200,7 +206,6 @@ def main() -> int:
         package_url=package_url,
         package_sha256=package_sha,
         resources=resources,
-        python_formula=args.python_formula,
         needs_rust=needs_rust,
     )
 
