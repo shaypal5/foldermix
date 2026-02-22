@@ -15,18 +15,24 @@ def test_pack_rejects_invalid_format(tmp_path: Path) -> None:
     result = runner.invoke(app, ["pack", str(tmp_path), "--format", "bad"])
     assert result.exit_code == 1
     assert "Invalid format" in result.output
+    assert "md, xml, jsonl" in result.output
+    assert "--help" in result.output
 
 
 def test_pack_rejects_invalid_on_oversize(tmp_path: Path) -> None:
     result = runner.invoke(app, ["pack", str(tmp_path), "--on-oversize", "bad"])
     assert result.exit_code == 1
     assert "Invalid --on-oversize" in result.output
+    assert "skip, truncate" in result.output
+    assert "--help" in result.output
 
 
 def test_pack_rejects_invalid_redact(tmp_path: Path) -> None:
     result = runner.invoke(app, ["pack", str(tmp_path), "--redact", "bad"])
     assert result.exit_code == 1
     assert "Invalid --redact" in result.output
+    assert "none, emails, phones, all" in result.output
+    assert "--help" in result.output
 
 
 def test_pack_builds_config_and_calls_packer(monkeypatch, tmp_path: Path) -> None:
@@ -102,3 +108,61 @@ def test_version_prints_package_version() -> None:
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
     assert f"foldermix {__version__}" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Help-text quality tests
+# ---------------------------------------------------------------------------
+
+
+def test_pack_help_contains_examples() -> None:
+    result = runner.invoke(app, ["pack", "--help"])
+    assert result.exit_code == 0
+    assert "foldermix pack" in result.output
+    assert "Examples:" in result.output
+    # \b blocks preserve the comment text verbatim
+    assert "Pack current directory to Markdown" in result.output
+    assert "Dry-run" in result.output
+
+
+def test_pack_help_all_options_documented(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["pack", "--help"])
+    assert result.exit_code == 0
+    # Options that previously had no help text should now show descriptions.
+    # Use short substrings that fit in any column width.
+    assert "symbolic" in result.output  # --follow-symlinks
+    assert "gitignore" in result.output  # --respect-gitignore
+    assert "convert" in result.output  # --continue-on-error
+    assert "frontmatter" in result.output  # --strip-frontmatter
+    assert "SHA-256" in result.output  # --include-sha256
+    assert "table of" in result.output  # --include-toc
+
+
+def test_list_help_all_options_documented() -> None:
+    result = runner.invoke(app, ["list", "--help"])
+    assert result.exit_code == 0
+    # Options that previously had no help text now show descriptions
+    assert "extensions to include" in result.output
+    assert "extensions to exclude" in result.output
+    assert "hidden" in result.output
+    assert "gitignore" in result.output
+    assert "Examples:" in result.output
+
+
+def test_stats_help_all_options_documented() -> None:
+    result = runner.invoke(app, ["stats", "--help"])
+    assert result.exit_code == 0
+    # Options that previously had no help text now show descriptions
+    assert "extensions to include" in result.output
+    assert "hidden" in result.output
+    assert "Examples:" in result.output
+
+
+def test_root_help_lists_all_commands() -> None:
+    result = runner.invoke(app, ["--help"])
+    assert result.exit_code == 0
+    assert "pack" in result.output
+    assert "list" in result.output
+    assert "stats" in result.output
+    assert "version" in result.output
+    assert "foldermix COMMAND" in result.output
