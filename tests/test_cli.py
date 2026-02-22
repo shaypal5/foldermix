@@ -130,12 +130,12 @@ def test_pack_help_all_options_documented(tmp_path: Path) -> None:
     assert result.exit_code == 0
     # Options that previously had no help text should now show descriptions.
     # Use short substrings that fit in any column width.
-    assert "symbolic" in result.output       # --follow-symlinks
-    assert "gitignore" in result.output      # --respect-gitignore
-    assert "convert" in result.output        # --continue-on-error
-    assert "frontmatter" in result.output    # --strip-frontmatter
-    assert "SHA-256" in result.output        # --include-sha256
-    assert "table of" in result.output       # --include-toc
+    assert "symbolic" in result.output  # --follow-symlinks
+    assert "gitignore" in result.output  # --respect-gitignore
+    assert "convert" in result.output  # --continue-on-error
+    assert "frontmatter" in result.output  # --strip-frontmatter
+    assert "SHA-256" in result.output  # --include-sha256
+    assert "table of" in result.output  # --include-toc
 
 
 def test_list_help_all_options_documented() -> None:

@@ -33,39 +33,110 @@ def _parse_csv(val: str | None) -> list[str] | None:
 @app.command("pack")
 def pack_cmd(
     path: Path = typer.Argument(Path("."), help="Directory to pack"),
-    out: Path | None = typer.Option(None, "--out", "-o", help="Output file path (defaults to the input directory name with the appropriate extension, written next to the input directory)"),
-    format: str = typer.Option("md", "--format", "-f", help="Output format: md, xml, jsonl [default: md]"),
+    out: Path | None = typer.Option(
+        None,
+        "--out",
+        "-o",
+        help="Output file path (defaults to the input directory name with the appropriate extension, written next to the input directory)",
+    ),
+    format: str = typer.Option(
+        "md", "--format", "-f", help="Output format: md, xml, jsonl [default: md]"
+    ),
     include_ext: str | None = typer.Option(
-        None, "--include-ext", help="Comma-separated file extensions to include (e.g. '.py,.md'). When set, only these extensions are packed."
+        None,
+        "--include-ext",
+        help="Comma-separated file extensions to include (e.g. '.py,.md'). When set, only these extensions are packed.",
     ),
     exclude_ext: str | None = typer.Option(
-        None, "--exclude-ext", help="Comma-separated file extensions to exclude (e.g. '.png,.zip'). Overrides the built-in exclusion list when provided."
+        None,
+        "--exclude-ext",
+        help="Comma-separated file extensions to exclude (e.g. '.png,.zip'). Overrides the built-in exclusion list when provided.",
     ),
     exclude_dirs: str | None = typer.Option(
-        None, "--exclude-dirs", help="Comma-separated directory names to exclude (e.g. 'node_modules,dist'). Overrides the built-in exclusion list when provided."
+        None,
+        "--exclude-dirs",
+        help="Comma-separated directory names to exclude (e.g. 'node_modules,dist'). Overrides the built-in exclusion list when provided.",
     ),
     exclude_glob: list[str] | None = typer.Option(
-        None, "--exclude-glob", help="Glob pattern(s) to exclude (e.g. '**/*.min.js'). May be repeated."
+        None,
+        "--exclude-glob",
+        help="Glob pattern(s) to exclude (e.g. '**/*.min.js'). May be repeated.",
     ),
     include_glob: list[str] | None = typer.Option(
-        None, "--include-glob", help="Glob pattern(s) to include (e.g. 'src/**/*.py'). May be repeated. When set, only matching files are packed."
+        None,
+        "--include-glob",
+        help="Glob pattern(s) to include (e.g. 'src/**/*.py'). May be repeated. When set, only matching files are packed.",
     ),
-    max_bytes: int = typer.Option(10_000_000, "--max-bytes", help="Maximum size in bytes (10 MB) for a single file. Files larger than this are handled according to --on-oversize [default: 10_000_000]"),
-    max_total_bytes: int | None = typer.Option(None, "--max-total-bytes", help="Stop packing after this many total bytes have been written. No limit by default."),
-    max_files: int | None = typer.Option(None, "--max-files", help="Stop after packing this many files. No limit by default."),
-    hidden: bool = typer.Option(False, "--hidden", help="Include hidden files and directories (names starting with '.')"),
-    follow_symlinks: bool = typer.Option(False, "--follow-symlinks", help="Follow symbolic links when scanning the directory tree"),
-    respect_gitignore: bool = typer.Option(True, "--respect-gitignore/--no-respect-gitignore", help="Skip files listed in .gitignore [default: respect]"),
-    workers: int = typer.Option(4, "--workers", help="Number of parallel worker threads used for file conversion [default: 4]"),
-    progress: bool = typer.Option(False, "--progress", help="Show a progress bar while packing (requires the 'tqdm' package)"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="List the files that would be packed without actually writing any output"),
-    report: Path | None = typer.Option(None, "--report", help="Write a JSON summary report to this path after packing"),
-    continue_on_error: bool = typer.Option(False, "--continue-on-error", help="Skip files that fail to read or convert instead of aborting"),
-    on_oversize: str = typer.Option("skip", "--on-oversize", help="What to do when a file exceeds --max-bytes: 'skip' omits it, 'truncate' includes it up to the limit [default: skip]"),
-    redact: str = typer.Option("none", "--redact", help="Redact sensitive patterns before writing: none, emails, phones, all [default: none]"),
-    strip_frontmatter: bool = typer.Option(False, "--strip-frontmatter", help="Strip YAML frontmatter blocks (--- ... ---) from Markdown files before packing"),
-    include_sha256: bool = typer.Option(True, "--include-sha256/--no-include-sha256", help="Embed a SHA-256 checksum for each file in the output [default: include]"),
-    include_toc: bool = typer.Option(True, "--include-toc/--no-include-toc", help="Prepend a table of contents to Markdown output [default: include]"),
+    max_bytes: int = typer.Option(
+        10_000_000,
+        "--max-bytes",
+        help="Maximum size in bytes (10 MB) for a single file. Files larger than this are handled according to --on-oversize [default: 10_000_000]",
+    ),
+    max_total_bytes: int | None = typer.Option(
+        None,
+        "--max-total-bytes",
+        help="Stop packing after this many total bytes have been written. No limit by default.",
+    ),
+    max_files: int | None = typer.Option(
+        None, "--max-files", help="Stop after packing this many files. No limit by default."
+    ),
+    hidden: bool = typer.Option(
+        False, "--hidden", help="Include hidden files and directories (names starting with '.')"
+    ),
+    follow_symlinks: bool = typer.Option(
+        False, "--follow-symlinks", help="Follow symbolic links when scanning the directory tree"
+    ),
+    respect_gitignore: bool = typer.Option(
+        True,
+        "--respect-gitignore/--no-respect-gitignore",
+        help="Skip files listed in .gitignore [default: respect]",
+    ),
+    workers: int = typer.Option(
+        4,
+        "--workers",
+        help="Number of parallel worker threads used for file conversion [default: 4]",
+    ),
+    progress: bool = typer.Option(
+        False, "--progress", help="Show a progress bar while packing (requires the 'tqdm' package)"
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="List the files that would be packed without actually writing any output",
+    ),
+    report: Path | None = typer.Option(
+        None, "--report", help="Write a JSON summary report to this path after packing"
+    ),
+    continue_on_error: bool = typer.Option(
+        False,
+        "--continue-on-error",
+        help="Skip files that fail to read or convert instead of aborting",
+    ),
+    on_oversize: str = typer.Option(
+        "skip",
+        "--on-oversize",
+        help="What to do when a file exceeds --max-bytes: 'skip' omits it, 'truncate' includes it up to the limit [default: skip]",
+    ),
+    redact: str = typer.Option(
+        "none",
+        "--redact",
+        help="Redact sensitive patterns before writing: none, emails, phones, all [default: none]",
+    ),
+    strip_frontmatter: bool = typer.Option(
+        False,
+        "--strip-frontmatter",
+        help="Strip YAML frontmatter blocks (--- ... ---) from Markdown files before packing",
+    ),
+    include_sha256: bool = typer.Option(
+        True,
+        "--include-sha256/--no-include-sha256",
+        help="Embed a SHA-256 checksum for each file in the output [default: include]",
+    ),
+    include_toc: bool = typer.Option(
+        True,
+        "--include-toc/--no-include-toc",
+        help="Prepend a table of contents to Markdown output [default: include]",
+    ),
 ) -> None:
     """Pack a directory into a single context file.
 
@@ -157,8 +228,14 @@ def list_cmd(
     exclude_ext: str | None = typer.Option(
         None, "--exclude-ext", help="Comma-separated file extensions to exclude (e.g. '.png,.zip')"
     ),
-    hidden: bool = typer.Option(False, "--hidden", help="Include hidden files and directories (names starting with '.')"),
-    respect_gitignore: bool = typer.Option(True, "--respect-gitignore/--no-respect-gitignore", help="Skip files listed in .gitignore [default: respect]"),
+    hidden: bool = typer.Option(
+        False, "--hidden", help="Include hidden files and directories (names starting with '.')"
+    ),
+    respect_gitignore: bool = typer.Option(
+        True,
+        "--respect-gitignore/--no-respect-gitignore",
+        help="Skip files listed in .gitignore [default: respect]",
+    ),
 ) -> None:
     """List candidate files that would be packed.
 
@@ -199,7 +276,9 @@ def stats_cmd(
     include_ext: str | None = typer.Option(
         None, "--include-ext", help="Comma-separated file extensions to include (e.g. '.py,.md')"
     ),
-    hidden: bool = typer.Option(False, "--hidden", help="Include hidden files and directories (names starting with '.')"),
+    hidden: bool = typer.Option(
+        False, "--hidden", help="Include hidden files and directories (names starting with '.')"
+    ),
 ) -> None:
     """Show summary statistics for a directory.
 

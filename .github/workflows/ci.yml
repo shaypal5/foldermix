@@ -144,7 +144,7 @@ jobs:
           test -f smoke_output.md
 
           invalid_pack_out="$(run_expect 1 ./.pkg-smoke-venv/bin/foldermix pack smoke_input --format bad)"
-          assert_contains "$invalid_pack_out" "Invalid format"
+          assert_contains "$invalid_pack_out" "Invalid --format"
 
           invalid_list_out="$(run_expect 2 ./.pkg-smoke-venv/bin/foldermix list smoke_input --bad-flag)"
           assert_contains "$invalid_list_out" "No such option"
