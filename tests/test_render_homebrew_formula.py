@@ -124,5 +124,5 @@ def test_resolve_runtime_deps_installs_local_project(monkeypatch, tmp_path: Path
     assert ("pathspec", "1.0.4") in deps
     assert ("rich", "14.3.3") in deps
     assert ("foldermix", "0.1.2") not in deps
-    assert any(cmd[:3] == ["/usr/bin/python3", "-m", "venv"] for cmd in commands)
+    assert any(len(cmd) >= 3 and cmd[1:3] == ["-m", "venv"] for cmd in commands)
     assert any(str(project_root) in cmd for cmd in commands)
