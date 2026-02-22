@@ -17,7 +17,14 @@ EXPECTED_DIR = FIXTURE_DIR / "expected" / "real_files"
 
 
 @pytest.mark.parametrize(
-    ("required_module", "converter", "src_name", "expected_name", "expected_converter", "expected_mime"),
+    (
+        "required_module",
+        "converter",
+        "src_name",
+        "expected_name",
+        "expected_converter",
+        "expected_mime",
+    ),
     [
         (
             "pypdf",
