@@ -9,6 +9,7 @@ from foldermix.config import PackConfig
 
 FIXTURE_DIR = Path(__file__).parent / "integration" / "fixtures"
 FIXED_MTIME = 1704067200  # 2024-01-01T00:00:00+00:00
+_TEXT_FIXTURE_EXTS = {".md", ".py", ".txt"}
 
 
 def _set_fixed_mtime(root: Path) -> None:
@@ -17,11 +18,23 @@ def _set_fixed_mtime(root: Path) -> None:
             os.utime(p, (FIXED_MTIME, FIXED_MTIME))
 
 
+def _normalize_fixture_newlines_to_lf(root: Path) -> None:
+    """Avoid CRLF checkout differences changing snapshot byte counts on Windows."""
+    for p in root.rglob("*"):
+        if not p.is_file() or p.suffix.lower() not in _TEXT_FIXTURE_EXTS:
+            continue
+        raw = p.read_bytes()
+        normalized = raw.replace(b"\r\n", b"\n")
+        if normalized != raw:
+            p.write_bytes(normalized)
+
+
 def _render_simple_project_snapshot(base_tmp: Path, fmt: str, out_name: str) -> str:
     base_tmp.mkdir(parents=True, exist_ok=True)
     src = FIXTURE_DIR / "simple_project"
     project_dir = base_tmp / "simple_project"
     shutil.copytree(src, project_dir)
+    _normalize_fixture_newlines_to_lf(project_dir)
     _set_fixed_mtime(project_dir)
 
     original_utcnow_iso = packer.utcnow_iso
