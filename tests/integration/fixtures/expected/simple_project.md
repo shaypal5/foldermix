@@ -2,7 +2,7 @@
 
 - **Root**: `__ROOT__`
 - **Generated**: 2024-01-02T00:00:00+00:00
-- **Version**: 0.1.1
+- **Version**: 0.1.2
 - **Files**: 3
 - **Total bytes**: 32
 
