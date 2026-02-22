@@ -85,7 +85,8 @@ def _fetch_pypi_release_file(package: str, version: str, retries: int = 8) -> tu
     )
 
 
-def _resolve_runtime_deps(version: str) -> list[tuple[str, str]]:
+def _resolve_runtime_deps(project_root: Path) -> list[tuple[str, str]]:
+    project_root = project_root.resolve()
     with tempfile.TemporaryDirectory(prefix="foldermix-brew-") as tmp:
         venv_dir = Path(tmp) / "venv"
         python = Path(sys.executable)
@@ -97,7 +98,8 @@ def _resolve_runtime_deps(version: str) -> list[tuple[str, str]]:
             pip = venv_dir / "bin" / "pip"
 
         _run([str(pip), "install", "--disable-pip-version-check", "--upgrade", "pip"])
-        _run([str(pip), "install", "--disable-pip-version-check", f"foldermix=={version}"])
+        # Resolve dependency versions from the current release commit source tree.
+        _run([str(pip), "install", "--disable-pip-version-check", str(project_root)])
         freeze = _run([str(pip), "freeze", "--all"])
 
     resolved: dict[str, tuple[str, str]] = {}
@@ -190,7 +192,8 @@ def main() -> int:
     args = parser.parse_args()
 
     package_url, package_sha = _fetch_pypi_release_file("foldermix", args.version)
-    runtime_deps = _resolve_runtime_deps(args.version)
+    project_root = Path(__file__).resolve().parents[1]
+    runtime_deps = _resolve_runtime_deps(project_root)
 
     resources: list[tuple[str, str, str]] = []
     needs_rust = False

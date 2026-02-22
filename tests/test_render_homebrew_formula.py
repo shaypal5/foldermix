@@ -94,3 +94,35 @@ def test_fetch_http_500_failure_mentions_url(monkeypatch) -> None:
         assert "HTTP 500" in text
     else:
         raise AssertionError("Expected RuntimeError")
+
+
+def test_resolve_runtime_deps_installs_local_project(monkeypatch, tmp_path: Path) -> None:
+    module = _load_renderer_module()
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+
+    commands: list[list[str]] = []
+
+    def fake_run(cmd: list[str]) -> str:
+        commands.append(cmd)
+        if cmd[-2:] == ["freeze", "--all"]:
+            return "\n".join(
+                [
+                    "foldermix==0.1.2",
+                    "rich==14.3.3",
+                    "pathspec==1.0.4",
+                    "pip==25.0.0",
+                ]
+            )
+        return ""
+
+    monkeypatch.setattr(module, "_run", fake_run)
+    monkeypatch.setattr(module.sys, "executable", "/usr/bin/python3")
+
+    deps = module._resolve_runtime_deps(project_root)
+
+    assert ("pathspec", "1.0.4") in deps
+    assert ("rich", "14.3.3") in deps
+    assert ("foldermix", "0.1.2") not in deps
+    assert any(len(cmd) >= 3 and cmd[1:3] == ["-m", "venv"] for cmd in commands)
+    assert any(str(project_root) in cmd for cmd in commands)
