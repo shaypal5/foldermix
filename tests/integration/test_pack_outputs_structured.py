@@ -19,5 +19,7 @@ def test_xml_output_matches_fixture_snapshot(tmp_path: Path, monkeypatch) -> Non
 
 def test_jsonl_output_matches_fixture_snapshot(tmp_path: Path, monkeypatch) -> None:
     expected = (FIXTURE_DIR / "expected" / "simple_project.jsonl").read_text(encoding="utf-8")
-    actual = render_simple_project_snapshot(tmp_path, FIXTURE_DIR, "jsonl", "bundle.jsonl", monkeypatch)
+    actual = render_simple_project_snapshot(
+        tmp_path, FIXTURE_DIR, "jsonl", "bundle.jsonl", monkeypatch
+    )
     assert actual == expected
