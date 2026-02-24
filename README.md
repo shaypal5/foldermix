@@ -94,7 +94,135 @@ See [SECURITY.md](SECURITY.md) for details on sensitive file handling.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full developer guide.
+
+---
+
+## Developer Guide
+
+### Dev Setup
+
+```bash
+pip install uv
+uv venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+uv pip install -e ".[dev,all]"
+```
+
+### Lint
+
+```bash
+ruff check .
+ruff format .
+```
+
+The CI `lint` job runs `ruff check . && ruff format --check .` on every push and pull request.
+
+### Running Tests
+
+```bash
+# Fast unit/smoke tests (excludes integration & slow markers)
+pytest -m "not integration and not slow"
+
+# Full suite with branch coverage (gate: ≥ 98%)
+pytest --cov=foldermix --cov-branch --cov-fail-under=98 tests/
+
+# Integration/snapshot tests only
+pytest -m integration
+
+# Performance smoke test (opt-in via env var)
+FOLDERMIX_RUN_PERF_SMOKE=1 pytest tests/test_perf_smoke.py -q -o addopts=
+
+# Mutation testing (install extra first)
+pip install -e ".[dev,mutation,all]"
+python -m mutmut run
+python -m mutmut results
+```
+
+### Test Suite Overview
+
+| File | Marker | What it covers |
+|------|--------|----------------|
+| `test_cli.py` | — | CLI argument validation, config construction, `pack`/`list`/`stats`/`version` commands |
+| `test_cli_entrypoint.py` | — | CLI entry-point smoke (`foldermix --help`) |
+| `test_converters.py` | — | Converter registry: PDF, Office, markitdown, plain-text |
+| `test_converters_fallback.py` | — | Fallback behaviour when optional extras are absent |
+| `test_packer.py` | — | Core `packer.pack()` logic, error handling, oversize policy |
+| `test_packer_edges.py` | — | Edge cases: symlinks, hidden files, max-file limits, report output |
+| `test_scanner.py` | — | File scanner: gitignore, extension filters, glob patterns |
+| `test_scanner_edge.py` | — | Scanner edge cases: circular symlinks, deeply nested dirs |
+| `test_scanner_properties.py` | — | Hypothesis-based property tests for the scanner |
+| `test_snapshot_guard.py` | — | Fast guard that snapshot fixtures in `tests/integration/fixtures/expected/` are in sync with the packer |
+| `test_utils.py` | — | Utility helpers (redaction, frontmatter stripping, SHA-256) |
+| `test_version_module.py` | — | `foldermix.__version__` is set and non-empty |
+| `test_writers.py` | — | All three writer classes (Markdown, XML, JSONL) round-trip |
+| `test_writers_edge.py` | — | Writer edge cases: empty bundles, special characters, large content |
+| `test_render_homebrew_formula.py` | — | Formula renderer helpers |
+| `test_perf_smoke.py` | `slow` | Packs 1,500 synthetic files; asserts wall-clock ≤ 25 s and peak RSS ≤ 256 MB |
+| `integration/test_pack_outputs.py` | `integration` | Golden-file snapshot tests: Markdown, XML, JSONL output match fixture files |
+| `integration/test_pack_outputs_structured.py` | `integration` | Structured assertions on actual pack output (TOC, SHA-256, XML structure) |
+| `integration/test_converters_real_files.py` | `integration` | Real-file converter tests (PDF, docx, xlsx, pptx) |
+
+Snapshot fixtures live in `tests/integration/fixtures/`:
+
+```
+tests/integration/fixtures/
+├── simple_project/          # input tree used by snapshot tests
+│   ├── alpha.md
+│   ├── code.py
+│   └── nested/
+└── expected/                # golden output files
+    ├── simple_project.md
+    ├── simple_project.xml
+    └── simple_project.jsonl
+```
+
+### CI Workflows
+
+| Workflow file | Trigger | Jobs |
+|---------------|---------|------|
+| `ci.yml` | Every push / PR | `lint` → `smoke` (matrix: Python 3.10–3.12, Ubuntu/macOS/Windows) → `minimal-deps` → `package-smoke` → `full` (coverage gate + Codecov) → `publish-pypi` → `update-homebrew-tap` |
+| `mutation.yml` | Weekly (Sat 09:00 UTC) + `workflow_dispatch` | `mutmut` on core source modules |
+| `perf-smoke.yml` | Weekly (Sun 09:00 UTC) + `workflow_dispatch` | Performance smoke test (1,500 files, ≤ 25 s) |
+| `security-audit.yml` | Weekly (Mon 09:00 UTC) + `pyproject.toml` changes + `workflow_dispatch` | `pip-audit` dependency vulnerability scan |
+
+**`ci.yml` job details:**
+
+- **`lint`** – Runs `ruff check` and `ruff format --check`.
+- **`smoke`** – Runs unit/smoke tests (excludes `integration` and `slow` markers) across five OS/Python combinations.
+- **`minimal-deps`** – Installs only `.[dev]` (no optional extras) and runs the core test files to confirm nothing is accidentally coupled to optional dependencies.
+- **`package-smoke`** – Builds a wheel with `python -m build`, installs it in a clean venv, then exercises the CLI with black-box shell assertions.
+- **`full`** – Runs the complete pytest suite with `--cov-report=xml` and uploads the coverage report to Codecov. Requires all earlier jobs to pass.
+- **`publish-pypi`** – Runs only on pushes to `main`. Detects a version bump in `pyproject.toml` by comparing `HEAD` against `HEAD^`. If a bump is detected, builds and publishes to PyPI via OIDC trusted publishing.
+- **`update-homebrew-tap`** – Runs after a successful `publish-pypi`. Calls `scripts/render_homebrew_formula.py` to generate a new Homebrew formula and pushes it to `shaypal5/homebrew-tap` using the `HOMEBREW_TAP_GITHUB_TOKEN` secret.
+
+### Release PR Process
+
+A release is triggered by merging a PR to `main` that bumps the `version` field in `pyproject.toml`. The following checklist describes a complete release PR:
+
+1. **Bump the version** in `pyproject.toml`:
+   ```toml
+   [project]
+   version = "X.Y.Z"
+   ```
+
+2. **Update snapshot fixtures** if any packer output has changed:
+   - Run the integration tests locally to detect fixture drift:
+     ```bash
+     pytest -m integration
+     ```
+   - If `test_pack_outputs.py` or `test_snapshot_guard.py` fail with a diff, copy the fresh output from a passing local run into `tests/integration/fixtures/expected/` and commit the updated fixtures as part of the same PR.
+
+3. **Run the full test suite** locally and confirm all tests pass:
+   ```bash
+   pytest --cov=foldermix tests/
+   ```
+
+4. **Open the PR** targeting `main` and wait for all CI jobs to pass.
+
+5. **Merge to `main`**. The `publish-pypi` job will detect the version bump, build the wheel, and publish to PyPI automatically. The `update-homebrew-tap` job will then update the Homebrew formula.
+
+> **Note:** If `HOMEBREW_TAP_GITHUB_TOKEN` is not configured the tap-update step is silently skipped. Configure it as a repository secret with write access to `shaypal5/homebrew-tap` before the first release.
 
 ## License
 
