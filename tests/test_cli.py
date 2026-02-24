@@ -169,6 +169,37 @@ def test_pack_reports_invalid_config(tmp_path: Path) -> None:
     assert "workers: expected an integer" in result.output
 
 
+def test_pack_applies_config_only_fields_encoding_and_line_ending(
+    monkeypatch, tmp_path: Path
+) -> None:
+    captured = {}
+
+    def fake_pack(config) -> None:
+        captured["config"] = config
+
+    monkeypatch.setattr(packer_module, "pack", fake_pack)
+
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'encoding = "latin-1"',
+                'line_ending = "crlf"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["pack", str(tmp_path), "--config", str(config_path)])
+
+    assert result.exit_code == 0, result.output
+    config = captured["config"]
+    assert config.encoding == "latin-1"
+    assert config.line_ending == "crlf"
+
+
 def test_list_shows_included_and_skipped_files(tmp_path: Path) -> None:
     (tmp_path / "keep.txt").write_text("ok")
     (tmp_path / ".hidden").write_text("secret")
