@@ -202,9 +202,7 @@ def test_pack_applies_config_only_fields_encoding_and_line_ending(
     assert config.line_ending == "crlf"
 
 
-def test_pack_print_effective_config_outputs_sources_and_exits(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_pack_print_effective_config_outputs_sources_and_exits(monkeypatch, tmp_path: Path) -> None:
     def fail_pack(_config) -> None:
         raise AssertionError("pack() should not be called in --print-effective-config mode")
 
@@ -255,9 +253,7 @@ def test_pack_print_effective_config_outputs_sources_and_exits(
     assert effective["line_ending"]["source"] == "config"
 
 
-def test_list_print_effective_config_outputs_sources_and_exits(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_list_print_effective_config_outputs_sources_and_exits(monkeypatch, tmp_path: Path) -> None:
     def fail_scan(_config):
         raise AssertionError("scan() should not be called in --print-effective-config mode")
 

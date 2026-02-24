@@ -74,7 +74,9 @@ def _parse_csv(val: str | None) -> list[str] | None:
     return [v.strip() for v in val.split(",") if v.strip()]
 
 
-def _print_effective_config(command: str, merged: EffectiveConfig, config_path: Path | None) -> None:
+def _print_effective_config(
+    command: str, merged: EffectiveConfig, config_path: Path | None
+) -> None:
     typer.echo(
         json.dumps(
             effective_config_payload(command=command, merged=merged, config_path=config_path),
@@ -259,7 +261,9 @@ def pack_cmd(
     }
 
     try:
-        overrides, used_config_path = load_command_config("pack", root=path, config_path=config_path)
+        overrides, used_config_path = load_command_config(
+            "pack", root=path, config_path=config_path
+        )
     except ConfigLoadError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from exc
