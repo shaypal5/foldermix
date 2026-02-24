@@ -78,6 +78,128 @@ def test_pack_builds_config_and_calls_packer(monkeypatch, tmp_path: Path) -> Non
     assert config.include_toc is False
 
 
+def test_pack_loads_values_from_config_file(monkeypatch, tmp_path: Path) -> None:
+    captured = {}
+
+    def fake_pack(config) -> None:
+        captured["config"] = config
+
+    monkeypatch.setattr(packer_module, "pack", fake_pack)
+
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'format = "xml"',
+                'include_ext = [".py", ".md"]',
+                "include_sha256 = false",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["pack", str(tmp_path), "--config", str(config_path)])
+
+    assert result.exit_code == 0, result.output
+    config = captured["config"]
+    assert config.format == "xml"
+    assert config.include_ext == [".py", ".md"]
+    assert config.include_sha256 is False
+
+
+def test_pack_cli_flags_override_config_values(monkeypatch, tmp_path: Path) -> None:
+    captured = {}
+
+    def fake_pack(config) -> None:
+        captured["config"] = config
+
+    monkeypatch.setattr(packer_module, "pack", fake_pack)
+
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'format = "xml"',
+                "include_toc = false",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "pack",
+            str(tmp_path),
+            "--config",
+            str(config_path),
+            "--format",
+            "jsonl",
+            "--include-toc",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    config = captured["config"]
+    assert config.format == "jsonl"
+    assert config.include_toc is True
+
+
+def test_pack_reports_invalid_config(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'workers = "many"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["pack", str(tmp_path), "--config", str(config_path)])
+
+    assert result.exit_code == 1
+    assert "Invalid config at" in result.output
+    assert "workers: expected an integer" in result.output
+
+
+def test_pack_applies_config_only_fields_encoding_and_line_ending(
+    monkeypatch, tmp_path: Path
+) -> None:
+    captured = {}
+
+    def fake_pack(config) -> None:
+        captured["config"] = config
+
+    monkeypatch.setattr(packer_module, "pack", fake_pack)
+
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'encoding = "latin-1"',
+                'line_ending = "crlf"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["pack", str(tmp_path), "--config", str(config_path)])
+
+    assert result.exit_code == 0, result.output
+    config = captured["config"]
+    assert config.encoding == "latin-1"
+    assert config.line_ending == "crlf"
+
+
 def test_list_shows_included_and_skipped_files(tmp_path: Path) -> None:
     (tmp_path / "keep.txt").write_text("ok")
     (tmp_path / ".hidden").write_text("secret")
@@ -88,6 +210,49 @@ def test_list_shows_included_and_skipped_files(tmp_path: Path) -> None:
     assert "keep.txt" in result.output
     assert ".hidden" not in result.output
     assert "1 files would be included, 1 skipped." in result.output
+
+
+def test_list_discovers_default_config(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[list]",
+                "hidden = true",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "keep.txt").write_text("ok")
+    (tmp_path / ".hidden").write_text("secret")
+
+    result = runner.invoke(app, ["list", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "keep.txt" in result.output
+    assert ".hidden" in result.output
+    assert config_path.exists()
+
+
+def test_list_reports_invalid_config(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[list]",
+                'hidden = "yes"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["list", str(tmp_path), "--config", str(config_path)])
+
+    assert result.exit_code == 1
+    assert "Invalid config at" in result.output
+    assert "hidden: expected a boolean" in result.output
 
 
 def test_stats_prints_summary_and_extensions(tmp_path: Path) -> None:
@@ -102,6 +267,26 @@ def test_stats_prints_summary_and_extensions(tmp_path: Path) -> None:
     assert "Skipped files:  0" in result.output
     assert ".py" in result.output
     assert ".md" in result.output
+
+
+def test_stats_reports_invalid_config(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[stats]",
+                "include_ext = 123",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["stats", str(tmp_path), "--config", str(config_path)])
+
+    assert result.exit_code == 1
+    assert "Invalid config at" in result.output
+    assert "include_ext: expected a list of strings" in result.output
 
 
 def test_version_prints_package_version() -> None:

@@ -3,10 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import typer
+from click.core import ParameterSource
 from rich.console import Console
 
 from . import __version__
 from .config import DEFAULT_EXCLUDE_DIRS, DEFAULT_EXCLUDE_EXT, PackConfig
+from .config_loader import ConfigLoadError, load_command_config
 
 app = typer.Typer(
     name="foldermix",
@@ -30,9 +32,25 @@ def _parse_csv(val: str | None) -> list[str] | None:
     return [v.strip() for v in val.split(",") if v.strip()]
 
 
+def _is_cli_set(ctx: typer.Context, param_name: str) -> bool:
+    return ctx.get_parameter_source(param_name) == ParameterSource.COMMANDLINE
+
+
+def _apply_config_overrides(
+    ctx: typer.Context, values: dict[str, object], overrides: dict[str, object]
+) -> None:
+    for key, value in overrides.items():
+        if key not in values or not _is_cli_set(ctx, key):
+            values[key] = value
+
+
 @app.command("pack")
 def pack_cmd(
+    ctx: typer.Context,
     path: Path = typer.Argument(Path("."), help="Directory to pack"),
+    config_path: Path | None = typer.Option(
+        None, "--config", help="Path to a foldermix TOML config file"
+    ),
     out: Path | None = typer.Option(
         None,
         "--out",
@@ -168,60 +186,76 @@ def pack_cmd(
     exc_ext = _parse_csv(exclude_ext) or list(DEFAULT_EXCLUDE_EXT)
     exc_dirs = _parse_csv(exclude_dirs) or list(DEFAULT_EXCLUDE_DIRS)
 
-    if format not in ("md", "xml", "jsonl"):
+    values: dict[str, object] = {
+        "root": path,
+        "out": out,
+        "format": format,
+        "include_ext": inc_ext,
+        "exclude_ext": exc_ext,
+        "exclude_dirs": exc_dirs,
+        "exclude_glob": exclude_glob or [],
+        "include_glob": include_glob or [],
+        "max_bytes": max_bytes,
+        "max_total_bytes": max_total_bytes,
+        "max_files": max_files,
+        "hidden": hidden,
+        "follow_symlinks": follow_symlinks,
+        "respect_gitignore": respect_gitignore,
+        "workers": workers,
+        "progress": progress,
+        "dry_run": dry_run,
+        "report": report,
+        "continue_on_error": continue_on_error,
+        "on_oversize": on_oversize,
+        "redact": redact,
+        "strip_frontmatter": strip_frontmatter,
+        "include_sha256": include_sha256,
+        "include_toc": include_toc,
+    }
+
+    try:
+        overrides, _ = load_command_config("pack", root=path, config_path=config_path)
+    except ConfigLoadError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+    _apply_config_overrides(ctx, values, overrides)
+
+    if values["format"] not in ("md", "xml", "jsonl"):
         console.print(
-            f"[red]Invalid format: {format!r}. Valid choices are: md, xml, jsonl.[/red]\n"
+            "[red]Invalid format:"
+            f" {values['format']!r}. Valid choices are: md, xml, jsonl.[/red]\n"
             "Run 'foldermix pack --help' for full usage information."
         )
         raise typer.Exit(code=1)
 
-    if on_oversize not in ("skip", "truncate"):
+    if values["on_oversize"] not in ("skip", "truncate"):
         console.print(
-            f"[red]Invalid --on-oversize: {on_oversize!r}. Valid choices are: skip, truncate.[/red]\n"
+            "[red]Invalid --on-oversize:"
+            f" {values['on_oversize']!r}. Valid choices are: skip, truncate.[/red]\n"
             "Run 'foldermix pack --help' for full usage information."
         )
         raise typer.Exit(code=1)
 
-    if redact not in ("none", "emails", "phones", "all"):
+    if values["redact"] not in ("none", "emails", "phones", "all"):
         console.print(
-            f"[red]Invalid --redact: {redact!r}. Valid choices are: none, emails, phones, all.[/red]\n"
+            "[red]Invalid --redact:"
+            f" {values['redact']!r}. Valid choices are: none, emails, phones, all.[/red]\n"
             "Run 'foldermix pack --help' for full usage information."
         )
         raise typer.Exit(code=1)
 
-    config = PackConfig(
-        root=path,
-        out=out,
-        format=format,  # type: ignore[arg-type]
-        include_ext=inc_ext,
-        exclude_ext=exc_ext,
-        exclude_dirs=exc_dirs,
-        exclude_glob=exclude_glob or [],
-        include_glob=include_glob or [],
-        max_bytes=max_bytes,
-        max_total_bytes=max_total_bytes,
-        max_files=max_files,
-        hidden=hidden,
-        follow_symlinks=follow_symlinks,
-        respect_gitignore=respect_gitignore,
-        workers=workers,
-        progress=progress,
-        dry_run=dry_run,
-        report=report,
-        continue_on_error=continue_on_error,
-        on_oversize=on_oversize,  # type: ignore[arg-type]
-        redact=redact,  # type: ignore[arg-type]
-        strip_frontmatter=strip_frontmatter,
-        include_sha256=include_sha256,
-        include_toc=include_toc,
-    )
+    pack_config = PackConfig(**values)  # type: ignore[arg-type]
 
-    pack(config)
+    pack(pack_config)
 
 
 @app.command("list")
 def list_cmd(
+    ctx: typer.Context,
     path: Path = typer.Argument(Path("."), help="Directory to scan"),
+    config: Path | None = typer.Option(
+        None, "--config", help="Path to a foldermix TOML config file"
+    ),
     include_ext: str | None = typer.Option(
         None, "--include-ext", help="Comma-separated file extensions to include (e.g. '.py,.md')"
     ),
@@ -257,14 +291,27 @@ def list_cmd(
     from .config import PackConfig
     from .scanner import scan
 
-    config = PackConfig(
+    values: dict[str, object] = {
+        "include_ext": _parse_csv(include_ext),
+        "exclude_ext": _parse_csv(exclude_ext) or list(DEFAULT_EXCLUDE_EXT),
+        "hidden": hidden,
+        "respect_gitignore": respect_gitignore,
+    }
+    try:
+        overrides, _ = load_command_config("list", root=path, config_path=config)
+    except ConfigLoadError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+    _apply_config_overrides(ctx, values, overrides)
+
+    pack_config = PackConfig(
         root=path,
-        include_ext=_parse_csv(include_ext),
-        exclude_ext=_parse_csv(exclude_ext) or list(DEFAULT_EXCLUDE_EXT),
-        hidden=hidden,
-        respect_gitignore=respect_gitignore,
+        include_ext=values["include_ext"],  # type: ignore[arg-type]
+        exclude_ext=values["exclude_ext"],  # type: ignore[arg-type]
+        hidden=values["hidden"],  # type: ignore[arg-type]
+        respect_gitignore=values["respect_gitignore"],  # type: ignore[arg-type]
     )
-    included, skipped = scan(config)
+    included, skipped = scan(pack_config)
     for r in included:
         console.print(f"{r.relpath}  ({r.size:,} bytes)")
     console.print(f"\n{len(included)} files would be included, {len(skipped)} skipped.")
@@ -272,7 +319,11 @@ def list_cmd(
 
 @app.command("stats")
 def stats_cmd(
+    ctx: typer.Context,
     path: Path = typer.Argument(Path("."), help="Directory to scan"),
+    config: Path | None = typer.Option(
+        None, "--config", help="Path to a foldermix TOML config file"
+    ),
     include_ext: str | None = typer.Option(
         None, "--include-ext", help="Comma-separated file extensions to include (e.g. '.py,.md')"
     ),
@@ -298,12 +349,23 @@ def stats_cmd(
     from .config import PackConfig
     from .scanner import scan
 
-    config = PackConfig(
+    values: dict[str, object] = {
+        "include_ext": _parse_csv(include_ext),
+        "hidden": hidden,
+    }
+    try:
+        overrides, _ = load_command_config("stats", root=path, config_path=config)
+    except ConfigLoadError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+    _apply_config_overrides(ctx, values, overrides)
+
+    pack_config = PackConfig(
         root=path,
-        include_ext=_parse_csv(include_ext),
-        hidden=hidden,
+        include_ext=values["include_ext"],  # type: ignore[arg-type]
+        hidden=values["hidden"],  # type: ignore[arg-type]
     )
-    included, skipped = scan(config)
+    included, skipped = scan(pack_config)
     total_bytes = sum(r.size for r in included)
 
     ext_counts: dict[str, int] = {}

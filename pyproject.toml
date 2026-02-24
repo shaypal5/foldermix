@@ -11,9 +11,11 @@ requires-python = ">=3.10"
 license = { file = "LICENSE" }
 keywords = ["llm", "context", "packing", "cli"]
 dependencies = [
+    "click>=8",
     "typer>=0.9",
     "pathspec>=0.12",
     "rich>=13.0",
+    "tomli>=2.0 ; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
