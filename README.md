@@ -2,7 +2,7 @@
 
 **Pack a folder into a single LLM-friendly context file.**
 
-[![CI](https://github.com/foldermix/foldermix/actions/workflows/ci.yml/badge.svg)](https://github.com/foldermix/foldermix/actions/workflows/ci.yml)
+[![CI](https://github.com/shaypal5/foldermix/actions/workflows/ci.yml/badge.svg)](https://github.com/shaypal5/foldermix/actions/workflows/ci.yml)
 
 ## Installation
 
