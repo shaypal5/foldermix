@@ -80,7 +80,7 @@ Typer application with four commands: `pack`, `list`, `stats`, `version`.
 
 ### `foldermix/writers/`
 
-Each writer subclasses the `Writer` class from `writers/base.py`:
+Each writer subclasses the `Writer` interface from `writers/base.py`:
 
 ```python
 class Writer:
@@ -101,7 +101,7 @@ class Converter(Protocol):
     def convert(self, path: Path, encoding: str = "utf-8") -> ConversionResult: ...
 ```
 
-Optional converters (`pdf`, `office`, `markitdown`) are always added to the registry, but they only become active when their optional dependencies are installed (otherwise their `can_convert()` methods return `False`, making them effective no-ops). The plain-text converter is always active as a fallback.
+Optional converters (`pdf`, `office`, `markitdown`) are always added to the registry, but they only become active when their optional dependencies (extras) are installed (otherwise their `can_convert()` methods return `False`, making them effective no-ops). The plain-text converter is always available as a fallback.
 
 ---
 
@@ -189,7 +189,7 @@ Triggered on every push to `main` and every pull request.
 
 ## Adding a New Output Format
 
-1. Create `foldermix/writers/myformat_writer.py` subclassing the `Writer` class.
+1. Create `foldermix/writers/myformat_writer.py` implementing the `Writer` protocol.
 2. Register it in `foldermix/writers/__init__.py` and `foldermix/cli.py` format lookup.
 3. Add unit tests in `tests/test_writers.py` and edge-case tests in `tests/test_writers_edge.py`.
 4. Add a snapshot fixture: copy `tests/integration/fixtures/expected/simple_project.md` as a template, run the packer against the `simple_project` fixture, and save the output to `tests/integration/fixtures/expected/simple_project.myformat`.

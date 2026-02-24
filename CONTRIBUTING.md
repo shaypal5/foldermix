@@ -21,13 +21,13 @@ ruff format .
 ## Test
 
 ```bash
-# Fast unit/smoke tests (no coverage gate; matches CI smoke lane)
+# Fast unit/smoke tests (no coverage; matches CI smoke lane)
 pytest -m "not integration and not slow" -o addopts=
 
 # Full suite with coverage
 pytest --cov=foldermix tests/
 
-# Integration/snapshot tests (no coverage gate)
+# Integration/snapshot tests (no coverage; matches CI smoke lane)
 pytest -m integration -o addopts=
 ```
 

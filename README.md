@@ -121,14 +121,14 @@ The CI `lint` job runs `ruff check . && ruff format --check .` on every push and
 ### Running Tests
 
 ```bash
-# Fast unit/smoke tests (excludes integration & slow markers; no coverage gate)
-pytest -m "not integration and not slow" -o addopts=
+# Fast unit/smoke tests (excludes integration & slow markers)
+pytest -m "not integration and not slow"
 
 # Full suite with branch coverage (gate: ≥ 98%)
 pytest --cov=foldermix --cov-branch --cov-fail-under=98 tests/
 
-# Integration/snapshot tests only (no coverage gate)
-pytest -m integration -o addopts=
+# Integration/snapshot tests only
+pytest -m integration
 
 # Performance smoke test (opt-in via env var)
 FOLDERMIX_RUN_PERF_SMOKE=1 pytest tests/test_perf_smoke.py -q -o addopts=
@@ -209,7 +209,7 @@ A release is triggered by merging a PR to `main` that bumps the `version` field 
 2. **Update snapshot fixtures** if any packer output has changed:
    - Run the integration tests locally to detect fixture drift:
      ```bash
-     pytest -m integration -o addopts=
+     pytest -m integration
      ```
    - If `test_pack_outputs.py` or `test_snapshot_guard.py` fail with a diff, copy the fresh output from a passing local run into `tests/integration/fixtures/expected/` and commit the updated fixtures as part of the same PR.
 
@@ -222,7 +222,7 @@ A release is triggered by merging a PR to `main` that bumps the `version` field 
 
 5. **Merge to `main`**. The `publish-pypi` job will detect the version bump, build the wheel, and publish to PyPI automatically. The `update-homebrew-tap` job will then update the Homebrew formula.
 
-> **Note:** If `HOMEBREW_TAP_GITHUB_TOKEN` is not configured, the tap-update step logs an explicit skip message and continues without error. Configure it as a repository secret with write access to `shaypal5/homebrew-tap` before the first release.
+> **Note:** If `HOMEBREW_TAP_GITHUB_TOKEN` is not configured the tap-update step is silently skipped. Configure it as a repository secret with write access to `shaypal5/homebrew-tap` before the first release.
 
 ## License
 
