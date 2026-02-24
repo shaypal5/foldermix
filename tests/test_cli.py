@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from typer.testing import CliRunner
 
 import foldermix.packer as packer_module
+import foldermix.scanner as scanner_module
 from foldermix import __version__
 from foldermix.cli import app
 
@@ -200,6 +202,147 @@ def test_pack_applies_config_only_fields_encoding_and_line_ending(
     assert config.line_ending == "crlf"
 
 
+def test_pack_print_effective_config_outputs_sources_and_exits(
+    monkeypatch, tmp_path: Path
+) -> None:
+    def fail_pack(_config) -> None:
+        raise AssertionError("pack() should not be called in --print-effective-config mode")
+
+    monkeypatch.setattr(packer_module, "pack", fail_pack)
+
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'format = "xml"',
+                "include_toc = false",
+                "hidden = true",
+                'line_ending = "crlf"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "pack",
+            str(tmp_path),
+            "--config",
+            str(config_path),
+            "--format",
+            "jsonl",
+            "--include-toc",
+            "--print-effective-config",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    effective = payload["effective_config"]
+
+    assert payload["command"] == "pack"
+    assert payload["config_path"] == str(config_path)
+    assert effective["format"]["value"] == "jsonl"
+    assert effective["format"]["source"] == "cli"
+    assert effective["include_toc"]["value"] is True
+    assert effective["include_toc"]["source"] == "cli"
+    assert effective["hidden"]["value"] is True
+    assert effective["hidden"]["source"] == "config"
+    assert effective["line_ending"]["value"] == "crlf"
+    assert effective["line_ending"]["source"] == "config"
+
+
+def test_list_print_effective_config_outputs_sources_and_exits(
+    monkeypatch, tmp_path: Path
+) -> None:
+    def fail_scan(_config):
+        raise AssertionError("scan() should not be called in --print-effective-config mode")
+
+    monkeypatch.setattr(scanner_module, "scan", fail_scan)
+
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[list]",
+                "hidden = true",
+                'include_ext = [".py"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "list",
+            str(tmp_path),
+            "--config",
+            str(config_path),
+            "--include-ext",
+            ".md,.txt",
+            "--print-effective-config",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    effective = payload["effective_config"]
+
+    assert payload["command"] == "list"
+    assert effective["include_ext"]["value"] == [".md", ".txt"]
+    assert effective["include_ext"]["source"] == "cli"
+    assert effective["hidden"]["value"] is True
+    assert effective["hidden"]["source"] == "config"
+
+
+def test_stats_print_effective_config_outputs_sources_and_exits(
+    monkeypatch, tmp_path: Path
+) -> None:
+    def fail_scan(_config):
+        raise AssertionError("scan() should not be called in --print-effective-config mode")
+
+    monkeypatch.setattr(scanner_module, "scan", fail_scan)
+
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[stats]",
+                'include_ext = [".py"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "stats",
+            str(tmp_path),
+            "--config",
+            str(config_path),
+            "--hidden",
+            "--print-effective-config",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    effective = payload["effective_config"]
+
+    assert payload["command"] == "stats"
+    assert effective["hidden"]["value"] is True
+    assert effective["hidden"]["source"] == "cli"
+    assert effective["include_ext"]["value"] == [".py"]
+    assert effective["include_ext"]["source"] == "config"
+
+
 def test_list_shows_included_and_skipped_files(tmp_path: Path) -> None:
     (tmp_path / "keep.txt").write_text("ok")
     (tmp_path / ".hidden").write_text("secret")
@@ -338,7 +481,7 @@ def test_stats_help_all_options_documented() -> None:
     result = runner.invoke(app, ["stats", "--help"])
     assert result.exit_code == 0
     # Options that previously had no help text now show descriptions
-    assert "extensions to include" in result.output
+    assert "--include-ext" in result.output
     assert "hidden" in result.output
     assert "Examples:" in result.output
 

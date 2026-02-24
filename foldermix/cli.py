@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import typer
-from click.core import ParameterSource
 from rich.console import Console
 
 from . import __version__
 from .config import DEFAULT_EXCLUDE_DIRS, DEFAULT_EXCLUDE_EXT, PackConfig
 from .config_loader import ConfigLoadError, load_command_config
+from .effective_config import EffectiveConfig, effective_config_payload, merge_config_layers
 
 app = typer.Typer(
     name="foldermix",
@@ -25,6 +26,47 @@ app = typer.Typer(
 )
 console = Console()
 
+_PACK_PARAM_BY_KEY = {
+    "root": "path",
+    "out": "out",
+    "format": "format",
+    "include_ext": "include_ext",
+    "exclude_ext": "exclude_ext",
+    "exclude_dirs": "exclude_dirs",
+    "exclude_glob": "exclude_glob",
+    "include_glob": "include_glob",
+    "max_bytes": "max_bytes",
+    "max_total_bytes": "max_total_bytes",
+    "max_files": "max_files",
+    "hidden": "hidden",
+    "follow_symlinks": "follow_symlinks",
+    "respect_gitignore": "respect_gitignore",
+    "workers": "workers",
+    "progress": "progress",
+    "dry_run": "dry_run",
+    "report": "report",
+    "continue_on_error": "continue_on_error",
+    "on_oversize": "on_oversize",
+    "redact": "redact",
+    "strip_frontmatter": "strip_frontmatter",
+    "include_sha256": "include_sha256",
+    "include_toc": "include_toc",
+}
+
+_LIST_PARAM_BY_KEY = {
+    "root": "path",
+    "include_ext": "include_ext",
+    "exclude_ext": "exclude_ext",
+    "hidden": "hidden",
+    "respect_gitignore": "respect_gitignore",
+}
+
+_STATS_PARAM_BY_KEY = {
+    "root": "path",
+    "include_ext": "include_ext",
+    "hidden": "hidden",
+}
+
 
 def _parse_csv(val: str | None) -> list[str] | None:
     if val is None:
@@ -32,16 +74,14 @@ def _parse_csv(val: str | None) -> list[str] | None:
     return [v.strip() for v in val.split(",") if v.strip()]
 
 
-def _is_cli_set(ctx: typer.Context, param_name: str) -> bool:
-    return ctx.get_parameter_source(param_name) == ParameterSource.COMMANDLINE
-
-
-def _apply_config_overrides(
-    ctx: typer.Context, values: dict[str, object], overrides: dict[str, object]
-) -> None:
-    for key, value in overrides.items():
-        if key not in values or not _is_cli_set(ctx, key):
-            values[key] = value
+def _print_effective_config(command: str, merged: EffectiveConfig, config_path: Path | None) -> None:
+    typer.echo(
+        json.dumps(
+            effective_config_payload(command=command, merged=merged, config_path=config_path),
+            indent=2,
+            sort_keys=True,
+        )
+    )
 
 
 @app.command("pack")
@@ -155,6 +195,11 @@ def pack_cmd(
         "--include-toc/--no-include-toc",
         help="Prepend a table of contents to Markdown output [default: include]",
     ),
+    print_effective_config: bool = typer.Option(
+        False,
+        "--print-effective-config",
+        help="Print merged effective configuration with value sources and exit",
+    ),
 ) -> None:
     """Pack a directory into a single context file.
 
@@ -214,11 +259,20 @@ def pack_cmd(
     }
 
     try:
-        overrides, _ = load_command_config("pack", root=path, config_path=config_path)
+        overrides, used_config_path = load_command_config("pack", root=path, config_path=config_path)
     except ConfigLoadError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from exc
-    _apply_config_overrides(ctx, values, overrides)
+    merged = merge_config_layers(
+        ctx,
+        defaults=values,
+        config_overrides=overrides,
+        key_to_param_name=_PACK_PARAM_BY_KEY,
+    )
+    if print_effective_config:
+        _print_effective_config("pack", merged, used_config_path)
+        return
+    values = merged.values
 
     if values["format"] not in ("md", "xml", "jsonl"):
         console.print(
@@ -253,7 +307,7 @@ def pack_cmd(
 def list_cmd(
     ctx: typer.Context,
     path: Path = typer.Argument(Path("."), help="Directory to scan"),
-    config: Path | None = typer.Option(
+    config_path: Path | None = typer.Option(
         None, "--config", help="Path to a foldermix TOML config file"
     ),
     include_ext: str | None = typer.Option(
@@ -269,6 +323,11 @@ def list_cmd(
         True,
         "--respect-gitignore/--no-respect-gitignore",
         help="Skip files listed in .gitignore [default: respect]",
+    ),
+    print_effective_config: bool = typer.Option(
+        False,
+        "--print-effective-config",
+        help="Print merged effective configuration with value sources and exit",
     ),
 ) -> None:
     """List candidate files that would be packed.
@@ -292,20 +351,32 @@ def list_cmd(
     from .scanner import scan
 
     values: dict[str, object] = {
+        "root": path,
         "include_ext": _parse_csv(include_ext),
         "exclude_ext": _parse_csv(exclude_ext) or list(DEFAULT_EXCLUDE_EXT),
         "hidden": hidden,
         "respect_gitignore": respect_gitignore,
     }
     try:
-        overrides, _ = load_command_config("list", root=path, config_path=config)
+        overrides, used_config_path = load_command_config(
+            "list", root=path, config_path=config_path
+        )
     except ConfigLoadError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from exc
-    _apply_config_overrides(ctx, values, overrides)
+    merged = merge_config_layers(
+        ctx,
+        defaults=values,
+        config_overrides=overrides,
+        key_to_param_name=_LIST_PARAM_BY_KEY,
+    )
+    if print_effective_config:
+        _print_effective_config("list", merged, used_config_path)
+        return
+    values = merged.values
 
     pack_config = PackConfig(
-        root=path,
+        root=values["root"],  # type: ignore[arg-type]
         include_ext=values["include_ext"],  # type: ignore[arg-type]
         exclude_ext=values["exclude_ext"],  # type: ignore[arg-type]
         hidden=values["hidden"],  # type: ignore[arg-type]
@@ -321,7 +392,7 @@ def list_cmd(
 def stats_cmd(
     ctx: typer.Context,
     path: Path = typer.Argument(Path("."), help="Directory to scan"),
-    config: Path | None = typer.Option(
+    config_path: Path | None = typer.Option(
         None, "--config", help="Path to a foldermix TOML config file"
     ),
     include_ext: str | None = typer.Option(
@@ -329,6 +400,11 @@ def stats_cmd(
     ),
     hidden: bool = typer.Option(
         False, "--hidden", help="Include hidden files and directories (names starting with '.')"
+    ),
+    print_effective_config: bool = typer.Option(
+        False,
+        "--print-effective-config",
+        help="Print merged effective configuration with value sources and exit",
     ),
 ) -> None:
     """Show summary statistics for a directory.
@@ -350,18 +426,30 @@ def stats_cmd(
     from .scanner import scan
 
     values: dict[str, object] = {
+        "root": path,
         "include_ext": _parse_csv(include_ext),
         "hidden": hidden,
     }
     try:
-        overrides, _ = load_command_config("stats", root=path, config_path=config)
+        overrides, used_config_path = load_command_config(
+            "stats", root=path, config_path=config_path
+        )
     except ConfigLoadError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from exc
-    _apply_config_overrides(ctx, values, overrides)
+    merged = merge_config_layers(
+        ctx,
+        defaults=values,
+        config_overrides=overrides,
+        key_to_param_name=_STATS_PARAM_BY_KEY,
+    )
+    if print_effective_config:
+        _print_effective_config("stats", merged, used_config_path)
+        return
+    values = merged.values
 
     pack_config = PackConfig(
-        root=path,
+        root=values["root"],  # type: ignore[arg-type]
         include_ext=values["include_ext"],  # type: ignore[arg-type]
         hidden=values["hidden"],  # type: ignore[arg-type]
     )

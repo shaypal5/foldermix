@@ -42,6 +42,9 @@ foldermix list .
 # Show statistics
 foldermix stats .
 
+# Print merged effective config (defaults + config + CLI) and exit
+foldermix pack . --config foldermix.toml --print-effective-config
+
 # Show version
 foldermix version
 ```
@@ -56,6 +59,22 @@ foldermix version
 - **SHA-256 checksums** per file
 - **Parallel processing** with configurable workers
 - **Table of contents** in Markdown output
+
+## Config Precedence
+
+`foldermix` resolves effective options in this deterministic order:
+
+1. Built-in defaults
+2. `foldermix.toml` values (`--config` or discovered file)
+3. Explicit CLI flags
+
+For diagnostics, any command can print the merged result (including source per key) and exit:
+
+```bash
+foldermix pack . --print-effective-config
+foldermix list . --print-effective-config
+foldermix stats . --print-effective-config
+```
 
 ## Options
 
