@@ -68,7 +68,7 @@ foldermix version
 2. `foldermix.toml` values (`--config` or discovered file)
 3. Explicit CLI flags
 
-For diagnostics, any command can print the merged result (including source per key) and exit:
+For diagnostics, `pack`, `list`, and `stats` can print the merged result (including source per key) and exit:
 
 ```bash
 foldermix pack . --print-effective-config

@@ -251,6 +251,33 @@ def test_pack_print_effective_config_outputs_sources_and_exits(monkeypatch, tmp_
     assert effective["hidden"]["source"] == "config"
     assert effective["line_ending"]["value"] == "crlf"
     assert effective["line_ending"]["source"] == "config"
+    assert effective["encoding"]["value"] == "utf-8"
+    assert effective["encoding"]["source"] == "default"
+
+
+def test_pack_print_effective_config_includes_pack_defaults(monkeypatch, tmp_path: Path) -> None:
+    def fail_pack(_config) -> None:
+        raise AssertionError("pack() should not be called in --print-effective-config mode")
+
+    monkeypatch.setattr(packer_module, "pack", fail_pack)
+
+    result = runner.invoke(
+        app,
+        [
+            "pack",
+            str(tmp_path),
+            "--print-effective-config",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    effective = payload["effective_config"]
+
+    assert effective["line_ending"]["value"] == "lf"
+    assert effective["line_ending"]["source"] == "default"
+    assert effective["encoding"]["value"] == "utf-8"
+    assert effective["encoding"]["source"] == "default"
 
 
 def test_list_print_effective_config_outputs_sources_and_exits(monkeypatch, tmp_path: Path) -> None:
