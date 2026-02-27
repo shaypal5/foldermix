@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -11,6 +12,11 @@ from foldermix import __version__
 from foldermix.cli import app
 
 runner = CliRunner()
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def _strip_ansi(text: str) -> str:
+    return _ANSI_RE.sub("", text)
 
 
 def test_pack_rejects_invalid_format(tmp_path: Path) -> None:
@@ -503,10 +509,11 @@ def test_list_help_all_options_documented() -> None:
 def test_stats_help_all_options_documented() -> None:
     result = runner.invoke(app, ["stats", "--help"])
     assert result.exit_code == 0
+    output = _strip_ansi(result.output)
     # Options that previously had no help text now show descriptions
-    assert "--include-ext" in result.output
-    assert "hidden" in result.output
-    assert "Examples:" in result.output
+    assert "--include-ext" in output
+    assert "hidden" in output
+    assert "Examples:" in output
 
 
 def test_root_help_lists_all_commands() -> None:
