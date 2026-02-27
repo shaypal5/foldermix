@@ -87,3 +87,24 @@ def test_effective_config_payload_is_deterministic_and_json_safe() -> None:
     assert Path(payload["effective_config"]["root"]["value"]) == Path("/tmp/project")
     assert payload["effective_config"]["root"]["source"] == "cli"
     assert payload["effective_config"]["include_ext"]["value"] == [".py", ".md"]
+
+
+def test_effective_config_payload_converts_nested_dict_values() -> None:
+    merged = merge_config_layers(
+        FakeContext(),
+        defaults={
+            "nested": {
+                1: Path("/tmp/a"),
+                "items": [Path("/tmp/b"), {"k": Path("/tmp/c")}],
+            }
+        },
+        config_overrides={},
+    )
+
+    payload = effective_config_payload(command="pack", merged=merged, config_path=None)
+    nested = payload["effective_config"]["nested"]["value"]
+
+    assert payload["config_path"] is None
+    assert nested["1"] == "/tmp/a"
+    assert nested["items"][0] == "/tmp/b"
+    assert nested["items"][1]["k"] == "/tmp/c"
