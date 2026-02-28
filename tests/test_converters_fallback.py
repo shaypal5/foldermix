@@ -223,6 +223,30 @@ def test_pdf_fallback_warns_when_ocr_enabled_but_deps_missing(monkeypatch, tmp_p
     assert "OCR dependencies missing" in result.warnings[0]
 
 
+def test_pdf_fallback_warns_for_each_textless_page_when_ocr_is_unavailable(
+    monkeypatch, tmp_path: Path
+) -> None:
+    path = tmp_path / "f.pdf"
+    path.write_text("placeholder", encoding="utf-8")
+
+    class _Page:
+        @staticmethod
+        def extract_text() -> str:
+            return ""
+
+    class _Reader:
+        def __init__(self, _path: str) -> None:
+            self.pages = [_Page(), _Page()]
+
+    monkeypatch.setitem(sys.modules, "pypdf", SimpleNamespace(PdfReader=_Reader))
+    monkeypatch.setitem(sys.modules, "pypdfium2", None)
+    monkeypatch.setitem(sys.modules, "rapidocr_onnxruntime", None)
+
+    result = PdfFallbackConverter().convert(path, enable_ocr=True)
+    assert len(result.warnings) == 2
+    assert all("OCR dependencies missing" in warning for warning in result.warnings)
+
+
 def test_pdf_fallback_strict_raises_when_ocr_required_and_deps_missing(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -293,6 +317,67 @@ def test_pdf_fallback_uses_ocr_when_available(monkeypatch, tmp_path: Path) -> No
 
     result = PdfFallbackConverter().convert(path, enable_ocr=True)
     assert "### Page 1\nocr text" in result.content
+    assert result.converter_name == "pypdf+rapidocr"
+    assert result.warnings == []
+
+
+def test_pdf_fallback_reuses_ocr_setup_across_textless_pages(monkeypatch, tmp_path: Path) -> None:
+    path = tmp_path / "f.pdf"
+    path.write_text("placeholder", encoding="utf-8")
+    init_calls = {"count": 0}
+    ocr_calls = {"count": 0}
+
+    class _Page:
+        @staticmethod
+        def extract_text() -> str:
+            return ""
+
+    class _Reader:
+        def __init__(self, _path: str) -> None:
+            self.pages = [_Page(), _Page()]
+
+    class _Rendered:
+        @staticmethod
+        def to_numpy():
+            return "image-array"
+
+    class _PdfiumPage:
+        @staticmethod
+        def render(scale: int = 2):
+            assert scale == 2
+            return _Rendered()
+
+    class _PdfiumDoc:
+        def __init__(self, _path: str) -> None:
+            pass
+
+        @staticmethod
+        def __getitem__(_idx: int):
+            return _PdfiumPage()
+
+    class _RapidOCR:
+        @staticmethod
+        def __call__(_image):
+            ocr_calls["count"] += 1
+            return ([[None, f"ocr text {ocr_calls['count']}", 0.99]], 0.01)
+
+    def _rapidocr_factory():
+        init_calls["count"] += 1
+        return _RapidOCR()
+
+    monkeypatch.setitem(sys.modules, "pypdf", SimpleNamespace(PdfReader=_Reader))
+    monkeypatch.setitem(sys.modules, "pypdfium2", SimpleNamespace(PdfDocument=_PdfiumDoc))
+    monkeypatch.setitem(
+        sys.modules,
+        "rapidocr_onnxruntime",
+        SimpleNamespace(RapidOCR=_rapidocr_factory),
+    )
+
+    result = PdfFallbackConverter().convert(path, enable_ocr=True)
+    assert "### Page 1\nocr text 1" in result.content
+    assert "### Page 2\nocr text 2" in result.content
+    assert init_calls["count"] == 1
+    assert ocr_calls["count"] == 2
     assert result.converter_name == "pypdf+rapidocr"
     assert result.warnings == []
 
