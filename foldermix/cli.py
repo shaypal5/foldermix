@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 from pathlib import Path
 
 import typer
@@ -11,6 +12,8 @@ from .config import DEFAULT_EXCLUDE_DIRS, DEFAULT_EXCLUDE_EXT, PackConfig
 from .config_loader import ConfigLoadError, load_command_config
 from .effective_config import EffectiveConfig, effective_config_payload, merge_config_layers
 from .init_profiles import available_profiles, has_profile, render_profile_config
+
+_INIT_PROFILE_CHOICES = ", ".join(available_profiles())
 
 app = typer.Typer(
     name="foldermix",
@@ -499,7 +502,7 @@ def init_cmd(
         ...,
         "--profile",
         help=(
-            "Starter profile name: legal, research, support, engineering-docs. "
+            f"Starter profile name: {_INIT_PROFILE_CHOICES}. "
             "Use this to bootstrap a local foldermix.toml."
         ),
     ),
@@ -544,7 +547,7 @@ def init_cmd(
     console.print(
         f"Wrote starter config to {output_path} using profile '{normalized}'. "
         "Run: foldermix pack . --config "
-        f"{output_path}"
+        f"{shlex.quote(str(output_path))}"
     )
 
 

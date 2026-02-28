@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,7 @@ from typer.testing import CliRunner
 
 import foldermix.packer as packer_module
 from foldermix.cli import app
+from foldermix.init_profiles import available_profiles
 
 try:  # Python 3.11+
     import tomllib
@@ -16,6 +18,13 @@ except ModuleNotFoundError:  # pragma: no cover - exercised on py310 CI
 
 runner = CliRunner()
 FIXTURE_DIR = Path(__file__).parent / "data" / "init_profiles"
+
+
+def test_init_help_lists_available_profiles() -> None:
+    result = runner.invoke(app, ["init", "--help"])
+    assert result.exit_code == 0, result.output
+    for profile in available_profiles():
+        assert profile in result.output
 
 
 @pytest.mark.parametrize(
@@ -83,6 +92,20 @@ def test_init_force_overwrites_existing_file(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     assert "Wrote starter config to" in result.output
     assert output_path.read_text(encoding="utf-8") != "sentinel\n"
+
+
+def test_init_success_message_shell_quotes_output_path() -> None:
+    with runner.isolated_filesystem():
+        output_path = Path("my profile config.toml")
+        result = runner.invoke(
+            app,
+            ["init", "--profile", "legal", "--out", str(output_path)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Run:" in result.output
+        expected_tail = f"foldermix pack . --config {shlex.quote(str(output_path))}"
+        assert expected_tail in result.output
 
 
 def test_init_reports_write_failure(monkeypatch, tmp_path: Path) -> None:

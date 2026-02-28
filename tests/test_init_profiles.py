@@ -5,6 +5,15 @@ import pytest
 from foldermix import init_profiles
 
 
+def test_available_profiles_matches_expected_order() -> None:
+    assert init_profiles.available_profiles() == (
+        "legal",
+        "research",
+        "support",
+        "engineering-docs",
+    )
+
+
 def test_toml_value_renders_integer_literal() -> None:
     assert init_profiles._toml_value(42) == "42"
 
