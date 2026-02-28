@@ -85,6 +85,24 @@ def test_init_force_overwrites_existing_file(tmp_path: Path) -> None:
     assert output_path.read_text(encoding="utf-8") != "sentinel\n"
 
 
+def test_init_reports_write_failure(monkeypatch, tmp_path: Path) -> None:
+    output_path = tmp_path / "foldermix.toml"
+
+    def fail_write_text(self: Path, *_args, **_kwargs) -> int:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Path, "write_text", fail_write_text)
+
+    result = runner.invoke(
+        app,
+        ["init", "--profile", "legal", "--out", str(output_path)],
+    )
+
+    assert result.exit_code == 1
+    assert "Failed to write config" in result.output
+    assert "disk full" in result.output
+
+
 @pytest.mark.parametrize(
     ("profile", "expected_redact"),
     [
