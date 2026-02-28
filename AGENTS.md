@@ -100,23 +100,23 @@ Use `--print-effective-config` on any command to inspect the merged result with 
 
 | File | Marker | What it covers |
 |------|--------|----------------|
-| `test_cli.py` | — | CLI argument validation, config construction, all four commands |
-| `test_cli_entrypoint.py` | — | CLI entry-point smoke (`foldermix --help`) |
-| `test_config_loader.py` | — | Raw config file loading, path resolution, error reporting |
-| `test_effective_config.py` | — | Merging of defaults, CLI flags, and config files into the effective config |
-| `test_converters.py` | — | Converter registry, PDF/Office/markitdown/text converters |
-| `test_converters_fallback.py` | — | Graceful degradation when optional extras are absent |
-| `test_packer.py` | — | Core `packer.pack()` logic, error handling, oversize policy |
-| `test_packer_edges.py` | — | `_convert_record()` edge cases (truncate cleanup, redaction/frontmatter, PDF OCR selection), tqdm progress branches, and default output naming |
-| `test_scanner.py` | — | Gitignore, extension filters, glob patterns |
-| `test_scanner_edge.py` | — | Sensitive-file skipping, unreadable files, `is_sensitive()` pattern matching |
-| `test_scanner_properties.py` | — | Hypothesis-based property tests for the scanner |
-| `test_snapshot_guard.py` | — | Fast guard that snapshot fixtures are in sync with the packer |
-| `test_utils.py` | — | Redaction, frontmatter stripping, SHA-256 helpers |
-| `test_version_module.py` | — | `foldermix.__version__` is set and non-empty |
-| `test_writers.py` | — | All three writer classes round-trip |
-| `test_writers_edge.py` | — | Empty bundles, special characters, large content |
-| `test_render_homebrew_formula.py` | — | Formula renderer helpers |
+| `test_cli.py` | - | CLI argument validation, config construction, all four commands |
+| `test_cli_entrypoint.py` | - | CLI entry-point smoke (`foldermix --help`) |
+| `test_config_loader.py` | - | Raw config file loading, path resolution, error reporting |
+| `test_effective_config.py` | - | Merging of defaults, CLI flags, and config files into the effective config |
+| `test_converters.py` | - | Converter registry, PDF/Office/markitdown/text converters |
+| `test_converters_fallback.py` | - | Graceful degradation when optional extras are absent |
+| `test_packer.py` | - | Core `packer.pack()` logic, error handling, oversize policy |
+| `test_packer_edges.py` | - | `_convert_record()` edge cases (truncate cleanup, redaction/frontmatter, PDF OCR selection), tqdm progress branches, and default output naming |
+| `test_scanner.py` | - | Gitignore, extension filters, glob patterns |
+| `test_scanner_edge.py` | - | Sensitive-file skipping, unreadable files, `is_sensitive()` pattern matching |
+| `test_scanner_properties.py` | - | Hypothesis-based property tests for the scanner |
+| `test_snapshot_guard.py` | - | Fast guard that snapshot fixtures are in sync with the packer |
+| `test_utils.py` | - | Redaction, frontmatter stripping, SHA-256 helpers |
+| `test_version_module.py` | - | `foldermix.__version__` is set and non-empty |
+| `test_writers.py` | - | All three writer classes round-trip |
+| `test_writers_edge.py` | - | Empty bundles, special characters, large content |
+| `test_render_homebrew_formula.py` | - | Formula renderer helpers |
 | `test_perf_smoke.py` | `slow` | 1,500 synthetic files; asserts ≤ 25 s wall-clock (configurable via `FOLDERMIX_PERF_MAX_SECONDS`) and ≤ 256 MB `tracemalloc` peak (configurable via `FOLDERMIX_PERF_MAX_PEAK_MB`) |
 | `integration/test_pack_outputs.py` | `integration` | Golden-file snapshot tests for md/xml/jsonl output |
 | `integration/test_pack_outputs_structured.py` | `integration` | Structured assertions on TOC, SHA-256, XML structure |
