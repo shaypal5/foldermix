@@ -58,6 +58,31 @@ def test_convert_record_truncate_and_cleanup(tmp_path: Path) -> None:
     assert not (tmp_path / "big.txt.truncated.tmp").exists()
 
 
+def test_convert_record_truncate_when_converter_deletes_tmp_file(tmp_path: Path) -> None:
+    path = tmp_path / "big.txt"
+    path.write_text("0123456789abcdef", encoding="utf-8")
+
+    class _Conv:
+        @staticmethod
+        def convert(p: Path, encoding: str = "utf-8") -> ConversionResult:
+            text = p.read_text(encoding=encoding)
+            p.unlink()
+            return ConversionResult(content=text, converter_name="fake")
+
+    config = PackConfig(
+        root=tmp_path,
+        on_oversize="truncate",
+        max_bytes=8,
+        include_sha256=False,
+    )
+    record = FileRecord(path=path, relpath="big.txt", ext=".txt", size=16, mtime=0.0)
+    item = packer._convert_record(record, _RegistryOne(_Conv()), config)
+
+    assert item.truncated is True
+    assert "[TRUNCATED]" in item.content
+    assert not (tmp_path / "big.txt.truncated.tmp").exists()
+
+
 def test_convert_record_applies_frontmatter_redaction_and_crlf(tmp_path: Path) -> None:
     path = tmp_path / "doc.md"
     path.write_text("x", encoding="utf-8")
@@ -97,6 +122,138 @@ def test_convert_record_ignores_sha256_oserror(monkeypatch, tmp_path: Path) -> N
     record = FileRecord(path=path, relpath="a.txt", ext=".txt", size=3, mtime=0.0)
     item = packer._convert_record(record, _RegistryOne(_Conv()), PackConfig(root=tmp_path))
     assert item.sha256 is None
+
+
+def test_convert_record_pdf_ocr_prefers_pdf_fallback_over_markitdown(
+    monkeypatch, tmp_path: Path
+) -> None:
+    path = tmp_path / "a.pdf"
+    path.write_text("placeholder", encoding="utf-8")
+
+    class _MarkitdownLike:
+        @staticmethod
+        def convert(_p: Path, encoding: str = "utf-8") -> ConversionResult:
+            return ConversionResult(content="markitdown", converter_name="markitdown")
+
+    class _Page:
+        @staticmethod
+        def extract_text() -> str:
+            return "from pypdf"
+
+    class _Reader:
+        def __init__(self, _path: str) -> None:
+            self.pages = [_Page()]
+
+    monkeypatch.setitem(sys.modules, "pypdf", SimpleNamespace(PdfReader=_Reader))
+    record = FileRecord(path=path, relpath="a.pdf", ext=".pdf", size=1, mtime=0.0)
+    item = packer._convert_record(
+        record,
+        _RegistryOne(_MarkitdownLike()),
+        PackConfig(root=tmp_path, include_sha256=False, pdf_ocr=True),
+    )
+
+    assert item.converter_name == "pypdf"
+    assert "from pypdf" in item.content
+    assert "markitdown" not in item.content
+
+
+def test_convert_record_pdf_without_ocr_keeps_registry_converter(tmp_path: Path) -> None:
+    path = tmp_path / "a.pdf"
+    path.write_text("placeholder", encoding="utf-8")
+
+    class _MarkitdownLike:
+        @staticmethod
+        def convert(_p: Path, encoding: str = "utf-8") -> ConversionResult:
+            return ConversionResult(content="markitdown", converter_name="markitdown")
+
+    record = FileRecord(path=path, relpath="a.pdf", ext=".pdf", size=1, mtime=0.0)
+    item = packer._convert_record(
+        record,
+        _RegistryOne(_MarkitdownLike()),
+        PackConfig(root=tmp_path, include_sha256=False, pdf_ocr=False),
+    )
+    assert item.converter_name == "markitdown"
+    assert item.content == "markitdown"
+
+
+def test_convert_record_pdf_ocr_with_missing_pypdf_keeps_registry_converter(
+    monkeypatch, tmp_path: Path
+) -> None:
+    path = tmp_path / "a.pdf"
+    path.write_text("placeholder", encoding="utf-8")
+
+    class _MarkitdownLike:
+        @staticmethod
+        def convert(_p: Path, encoding: str = "utf-8") -> ConversionResult:
+            return ConversionResult(content="markitdown", converter_name="markitdown")
+
+    monkeypatch.setitem(sys.modules, "pypdf", None)
+    record = FileRecord(path=path, relpath="a.pdf", ext=".pdf", size=1, mtime=0.0)
+    item = packer._convert_record(
+        record,
+        _RegistryOne(_MarkitdownLike()),
+        PackConfig(root=tmp_path, include_sha256=False, pdf_ocr=True),
+    )
+    assert item.converter_name == "markitdown"
+    assert item.content == "markitdown"
+    assert len(item.warnings) == 1
+    assert "PDF OCR is enabled" in item.warnings[0]
+
+
+def test_convert_record_pdf_ocr_with_missing_pypdf_and_strict_raises(
+    monkeypatch, tmp_path: Path
+) -> None:
+    path = tmp_path / "a.pdf"
+    path.write_text("placeholder", encoding="utf-8")
+
+    class _MarkitdownLike:
+        @staticmethod
+        def convert(_p: Path, encoding: str = "utf-8") -> ConversionResult:
+            return ConversionResult(content="markitdown", converter_name="markitdown")
+
+    monkeypatch.setitem(sys.modules, "pypdf", None)
+    record = FileRecord(path=path, relpath="a.pdf", ext=".pdf", size=1, mtime=0.0)
+
+    try:
+        packer._convert_record(
+            record,
+            _RegistryOne(_MarkitdownLike()),
+            PackConfig(root=tmp_path, include_sha256=False, pdf_ocr=True, pdf_ocr_strict=True),
+        )
+    except RuntimeError as exc:
+        assert "PDF OCR is enabled" in str(exc)
+    else:
+        raise AssertionError("expected RuntimeError when pdf_ocr_strict is enabled")
+
+
+def test_convert_record_continue_on_error_preserves_prior_ocr_warning(
+    monkeypatch, tmp_path: Path
+) -> None:
+    path = tmp_path / "a.pdf"
+    path.write_text("placeholder", encoding="utf-8")
+
+    class _FailingConverter:
+        @staticmethod
+        def convert(_p: Path, encoding: str = "utf-8") -> ConversionResult:
+            raise RuntimeError("converter blew up")
+
+    monkeypatch.setitem(sys.modules, "pypdf", None)
+    record = FileRecord(path=path, relpath="a.pdf", ext=".pdf", size=1, mtime=0.0)
+    item = packer._convert_record(
+        record,
+        _RegistryOne(_FailingConverter()),
+        PackConfig(
+            root=tmp_path,
+            include_sha256=False,
+            pdf_ocr=True,
+            continue_on_error=True,
+        ),
+    )
+    assert item.converter_name == "error"
+    assert "Error converting file" in item.content
+    assert len(item.warnings) == 2
+    assert "PDF OCR is enabled" in item.warnings[0]
+    assert "converter blew up" in item.warnings[1]
 
 
 def test_pack_uses_progress_branch_with_tqdm(tmp_path: Path, monkeypatch) -> None:

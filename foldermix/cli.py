@@ -53,6 +53,8 @@ _PACK_PARAM_BY_KEY = {
     "strip_frontmatter": "strip_frontmatter",
     "include_sha256": "include_sha256",
     "include_toc": "include_toc",
+    "pdf_ocr": "pdf_ocr",
+    "pdf_ocr_strict": "pdf_ocr_strict",
 }
 
 _LIST_PARAM_BY_KEY = {
@@ -199,6 +201,16 @@ def pack_cmd(
         "--include-toc/--no-include-toc",
         help="Prepend a table of contents to Markdown output [default: include]",
     ),
+    pdf_ocr: bool = typer.Option(
+        False,
+        "--pdf-ocr/--no-pdf-ocr",
+        help="Attempt OCR for PDF pages with no extractable text when OCR dependencies are installed [default: disabled]",
+    ),
+    pdf_ocr_strict: bool = typer.Option(
+        False,
+        "--pdf-ocr-strict/--no-pdf-ocr-strict",
+        help="Fail conversion when OCR is required but unavailable or unsuccessful [default: disabled]",
+    ),
     print_effective_config: bool = typer.Option(
         False,
         "--print-effective-config",
@@ -262,6 +274,8 @@ def pack_cmd(
         "strip_frontmatter": strip_frontmatter,
         "include_sha256": include_sha256,
         "include_toc": include_toc,
+        "pdf_ocr": pdf_ocr,
+        "pdf_ocr_strict": pdf_ocr_strict,
     }
 
     try:

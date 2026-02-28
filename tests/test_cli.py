@@ -70,6 +70,8 @@ def test_pack_builds_config_and_calls_packer(monkeypatch, tmp_path: Path) -> Non
             "all",
             "--no-include-sha256",
             "--no-include-toc",
+            "--pdf-ocr",
+            "--pdf-ocr-strict",
         ],
     )
 
@@ -84,6 +86,8 @@ def test_pack_builds_config_and_calls_packer(monkeypatch, tmp_path: Path) -> Non
     assert config.redact == "all"
     assert config.include_sha256 is False
     assert config.include_toc is False
+    assert config.pdf_ocr is True
+    assert config.pdf_ocr_strict is True
 
 
 def test_pack_loads_values_from_config_file(monkeypatch, tmp_path: Path) -> None:
@@ -102,6 +106,7 @@ def test_pack_loads_values_from_config_file(monkeypatch, tmp_path: Path) -> None
                 'format = "xml"',
                 'include_ext = [".py", ".md"]',
                 "include_sha256 = false",
+                "pdf_ocr = true",
                 "",
             ]
         ),
@@ -115,6 +120,7 @@ def test_pack_loads_values_from_config_file(monkeypatch, tmp_path: Path) -> None
     assert config.format == "xml"
     assert config.include_ext == [".py", ".md"]
     assert config.include_sha256 is False
+    assert config.pdf_ocr is True
 
 
 def test_pack_cli_flags_override_config_values(monkeypatch, tmp_path: Path) -> None:
@@ -259,6 +265,10 @@ def test_pack_print_effective_config_outputs_sources_and_exits(monkeypatch, tmp_
     assert effective["line_ending"]["source"] == "config"
     assert effective["encoding"]["value"] == "utf-8"
     assert effective["encoding"]["source"] == "default"
+    assert effective["pdf_ocr"]["value"] is False
+    assert effective["pdf_ocr"]["source"] == "default"
+    assert effective["pdf_ocr_strict"]["value"] is False
+    assert effective["pdf_ocr_strict"]["source"] == "default"
 
 
 def test_pack_print_effective_config_includes_pack_defaults(monkeypatch, tmp_path: Path) -> None:

@@ -37,6 +37,8 @@ _COMMAND_KEYS: dict[str, set[str]] = {
         "strip_frontmatter",
         "include_sha256",
         "include_toc",
+        "pdf_ocr",
+        "pdf_ocr_strict",
     },
     "list": {"include_ext", "exclude_ext", "hidden", "respect_gitignore"},
     "stats": {"include_ext", "hidden"},
@@ -61,6 +63,8 @@ _BOOL_KEYS = {
     "strip_frontmatter",
     "include_sha256",
     "include_toc",
+    "pdf_ocr",
+    "pdf_ocr_strict",
 }
 _STR_KEYS = {"encoding"}
 _PATH_KEYS = {"out", "report"}

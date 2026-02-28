@@ -18,6 +18,8 @@ def test_load_command_config_from_tool_section(tmp_path: Path) -> None:
                 "workers = 2",
                 'include_ext = [".py", ".md"]',
                 "include_toc = false",
+                "pdf_ocr = true",
+                "pdf_ocr_strict = false",
                 "",
             ]
         ),
@@ -31,6 +33,8 @@ def test_load_command_config_from_tool_section(tmp_path: Path) -> None:
     assert values["workers"] == 2
     assert values["include_ext"] == [".py", ".md"]
     assert values["include_toc"] is False
+    assert values["pdf_ocr"] is True
+    assert values["pdf_ocr_strict"] is False
 
 
 def test_load_command_config_discovers_parent_file(tmp_path: Path) -> None:
@@ -196,6 +200,7 @@ def test_load_command_config_rejects_invalid_bool_and_string_types(tmp_path: Pat
             [
                 "[pack]",
                 'hidden = "yes"',
+                'pdf_ocr = "yes"',
                 "encoding = 1",
                 "",
             ]
@@ -208,6 +213,7 @@ def test_load_command_config_rejects_invalid_bool_and_string_types(tmp_path: Pat
 
     message = str(exc.value)
     assert "hidden: expected a boolean" in message
+    assert "pdf_ocr: expected a boolean" in message
     assert "encoding: expected a string" in message
 
 

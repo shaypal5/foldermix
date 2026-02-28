@@ -9,8 +9,9 @@
 ```bash
 pip install foldermix
 # With optional extras:
-pip install "foldermix[all]"   # adds PDF, Office, tqdm
+pip install "foldermix[all]"   # adds PDF, OCR, Office, tqdm
 pip install "foldermix[pdf]"   # pypdf only
+pip install "foldermix[ocr]"   # OCR for image-based PDF pages (includes pypdf + rapidocr + pypdfium2)
 pip install "foldermix[office]" # docx/xlsx/pptx support
 ```
 
@@ -54,7 +55,7 @@ foldermix version
 - **Multiple output formats**: Markdown, XML, JSONL
 - **Smart filtering**: gitignore support, extension filters, glob patterns
 - **Sensitive file protection**: Automatically skips `.env`, keys, certificates
-- **Optional converters**: PDF (pypdf), Office docs (python-docx, openpyxl, python-pptx), markitdown
+- **Optional converters**: PDF (pypdf), OCR-enhanced PDF fallback (rapidocr + pypdfium2), Office docs (python-docx, openpyxl, python-pptx), markitdown
 - **Redaction**: Email and phone number redaction via `--redact`
 - **SHA-256 checksums** per file
 - **Parallel processing** with configurable workers
@@ -105,6 +106,8 @@ Options:
   --strip-frontmatter           Strip YAML frontmatter from files
   --include-sha256 / --no-include-sha256  [default: include]
   --include-toc / --no-include-toc        [default: include]
+  --pdf-ocr / --no-pdf-ocr                Enable OCR fallback for textless PDF pages [default: disabled]
+  --pdf-ocr-strict / --no-pdf-ocr-strict  Fail when OCR is needed but unavailable/empty [default: disabled]
 ```
 
 ## Security

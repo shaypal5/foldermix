@@ -51,14 +51,38 @@ def _convert_record(
     config: PackConfig,
 ) -> FileBundleItem:
     converter = registry.get_converter(record.ext)
-    truncated = False
     warnings: list[str] = []
+    if record.ext == ".pdf" and config.pdf_ocr:
+        pdf_converter = PdfFallbackConverter()
+        if pdf_converter.can_convert(record.ext):
+            converter = pdf_converter
+        else:
+            message = (
+                "PDF OCR is enabled, but PDF/OCR dependencies are unavailable. "
+                "Install the PDF/OCR extras (for example, 'pip install foldermix[ocr]') "
+                "or disable --pdf-ocr."
+            )
+            if config.pdf_ocr_strict:
+                raise RuntimeError(message)
+            warnings.append(message)
+    truncated = False
 
     if converter is None:
         content = f"[No converter available for {record.ext}]"
         converter_name = "none"
         original_mime = ""
     else:
+
+        def run_convert(path: Path):
+            if isinstance(converter, PdfFallbackConverter):
+                return converter.convert(
+                    path,
+                    config.encoding,
+                    enable_ocr=config.pdf_ocr,
+                    ocr_strict=config.pdf_ocr_strict,
+                )
+            return converter.convert(path, config.encoding)
+
         try:
             if config.on_oversize == "truncate" and record.size > config.max_bytes:
                 # Truncate: read first K and last K bytes
@@ -72,18 +96,18 @@ def _convert_record(
                 tmp = record.path.parent / (record.path.name + ".truncated.tmp")
                 try:
                     tmp.write_bytes(truncated_bytes)
-                    result = converter.convert(tmp, config.encoding)
+                    result = run_convert(tmp)
                 finally:
                     if tmp.exists():
                         tmp.unlink()
                 truncated = True
             else:
-                result = converter.convert(record.path, config.encoding)
+                result = run_convert(record.path)
 
             content = result.content
             converter_name = result.converter_name
             original_mime = result.original_mime
-            warnings = result.warnings
+            warnings.extend(result.warnings)
 
             if config.strip_frontmatter:
                 from .utils import strip_yaml_frontmatter
@@ -103,7 +127,7 @@ def _convert_record(
                 content = f"[Error converting file: {e}]"
                 converter_name = "error"
                 original_mime = ""
-                warnings = [str(e)]
+                warnings.append(str(e))
             else:
                 raise
 
