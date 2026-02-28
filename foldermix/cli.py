@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shlex
+import sys
 from pathlib import Path
 
 import typer
@@ -12,6 +13,7 @@ from .config import DEFAULT_EXCLUDE_DIRS, DEFAULT_EXCLUDE_EXT, PackConfig
 from .config_loader import ConfigLoadError, load_command_config
 from .effective_config import EffectiveConfig, effective_config_payload, merge_config_layers
 from .init_profiles import available_profiles, has_profile, render_profile_config
+from .stdin_paths import parse_stdin_paths
 
 _INIT_PROFILE_CHOICES = ", ".join(available_profiles())
 
@@ -93,6 +95,16 @@ def _print_effective_config(
             sort_keys=True,
         )
     )
+
+
+def _read_stdin_paths(use_stdin: bool, null_delimited: bool) -> list[Path] | None:
+    if not use_stdin:
+        if null_delimited:
+            console.print("[red]--null requires --stdin.[/red]")
+            raise typer.Exit(code=1)
+        return None
+    data = sys.stdin.buffer.read()
+    return parse_stdin_paths(data, null_delimited=null_delimited, cwd=Path.cwd())
 
 
 @app.command("pack")
@@ -216,6 +228,16 @@ def pack_cmd(
         "--pdf-ocr-strict/--no-pdf-ocr-strict",
         help="Fail conversion when OCR is required but unavailable or unsuccessful [default: disabled]",
     ),
+    stdin: bool = typer.Option(
+        False,
+        "--stdin",
+        help="Read explicit file paths from standard input instead of recursively scanning PATH.",
+    ),
+    null_delimited: bool = typer.Option(
+        False,
+        "--null",
+        help="Parse stdin paths as NUL-delimited entries (compatible with find -print0). Requires --stdin.",
+    ),
     print_effective_config: bool = typer.Option(
         False,
         "--print-effective-config",
@@ -300,6 +322,7 @@ def pack_cmd(
         _print_effective_config("pack", merged, used_config_path)
         return
     values = merged.values
+    stdin_paths = _read_stdin_paths(stdin, null_delimited)
 
     if values["format"] not in ("md", "xml", "jsonl"):
         console.print(
@@ -325,7 +348,7 @@ def pack_cmd(
         )
         raise typer.Exit(code=1)
 
-    pack_config = PackConfig(**values)  # type: ignore[arg-type]
+    pack_config = PackConfig(stdin_paths=stdin_paths, **values)  # type: ignore[arg-type]
 
     pack(pack_config)
 
@@ -350,6 +373,16 @@ def list_cmd(
         True,
         "--respect-gitignore/--no-respect-gitignore",
         help="Skip files listed in .gitignore [default: respect]",
+    ),
+    stdin: bool = typer.Option(
+        False,
+        "--stdin",
+        help="Read explicit file paths from standard input instead of recursively scanning PATH.",
+    ),
+    null_delimited: bool = typer.Option(
+        False,
+        "--null",
+        help="Parse stdin paths as NUL-delimited entries (compatible with find -print0). Requires --stdin.",
     ),
     print_effective_config: bool = typer.Option(
         False,
@@ -401,9 +434,11 @@ def list_cmd(
         _print_effective_config("list", merged, used_config_path)
         return
     values = merged.values
+    stdin_paths = _read_stdin_paths(stdin, null_delimited)
 
     pack_config = PackConfig(
         root=values["root"],  # type: ignore[arg-type]
+        stdin_paths=stdin_paths,
         include_ext=values["include_ext"],  # type: ignore[arg-type]
         exclude_ext=values["exclude_ext"],  # type: ignore[arg-type]
         hidden=values["hidden"],  # type: ignore[arg-type]
@@ -427,6 +462,16 @@ def stats_cmd(
     ),
     hidden: bool = typer.Option(
         False, "--hidden", help="Include hidden files and directories (names starting with '.')"
+    ),
+    stdin: bool = typer.Option(
+        False,
+        "--stdin",
+        help="Read explicit file paths from standard input instead of recursively scanning PATH.",
+    ),
+    null_delimited: bool = typer.Option(
+        False,
+        "--null",
+        help="Parse stdin paths as NUL-delimited entries (compatible with find -print0). Requires --stdin.",
     ),
     print_effective_config: bool = typer.Option(
         False,
@@ -474,9 +519,11 @@ def stats_cmd(
         _print_effective_config("stats", merged, used_config_path)
         return
     values = merged.values
+    stdin_paths = _read_stdin_paths(stdin, null_delimited)
 
     pack_config = PackConfig(
         root=values["root"],  # type: ignore[arg-type]
+        stdin_paths=stdin_paths,
         include_ext=values["include_ext"],  # type: ignore[arg-type]
         hidden=values["hidden"],  # type: ignore[arg-type]
     )

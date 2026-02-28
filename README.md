@@ -43,6 +43,12 @@ foldermix list .
 # Show statistics
 foldermix stats .
 
+# Read explicit file list from stdin
+printf 'a.txt\nnotes/b.txt\n' | foldermix pack . --stdin --format jsonl --out context.jsonl
+
+# Read NUL-delimited file list from find -print0
+find . -type f -print0 | foldermix pack . --stdin --null --format md --out context.md
+
 # Print merged effective config (defaults + config + CLI) and exit
 foldermix pack . --config foldermix.toml --print-effective-config
 
@@ -128,6 +134,8 @@ Options:
   --include-toc / --no-include-toc        [default: include]
   --pdf-ocr / --no-pdf-ocr                Enable OCR fallback for textless PDF pages [default: disabled]
   --pdf-ocr-strict / --no-pdf-ocr-strict  Fail when OCR is needed but unavailable/empty [default: disabled]
+  --stdin                        Read explicit file paths from standard input instead of recursive scanning
+  --null                         Parse stdin as NUL-delimited paths (for find -print0); requires --stdin
 ```
 
 ## Security

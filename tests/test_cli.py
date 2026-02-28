@@ -503,6 +503,8 @@ def test_pack_help_all_options_documented(tmp_path: Path) -> None:
     assert "frontmatter" in result.output  # --strip-frontmatter
     assert "SHA-256" in result.output  # --include-sha256
     assert "table of" in result.output  # --include-toc
+    assert "--stdin" in result.output
+    assert "--null" in result.output
 
 
 def test_list_help_all_options_documented() -> None:
@@ -514,6 +516,8 @@ def test_list_help_all_options_documented() -> None:
     assert "--exclude-ext" in output
     assert "hidden" in output
     assert "gitignore" in output
+    assert "--stdin" in output
+    assert "--null" in output
     assert "Examples:" in output
 
 
@@ -524,6 +528,8 @@ def test_stats_help_all_options_documented() -> None:
     # Options that previously had no help text now show descriptions
     assert "--include-ext" in output
     assert "hidden" in output
+    assert "--stdin" in output
+    assert "--null" in output
     assert "Examples:" in output
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from foldermix.config import PackConfig
-from foldermix.scanner import scan
+from foldermix.scanner import SkipRecord, scan
 
 
 def test_basic_scan(sample_dir: Path) -> None:
@@ -132,3 +132,45 @@ def test_no_respect_gitignore(tmp_path: Path) -> None:
     included, _ = scan(config)
     relpaths = [r.relpath for r in included]
     assert "included.txt" in relpaths
+
+
+def test_stdin_paths_outside_root_are_skipped(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("outside", encoding="utf-8")
+
+    config = PackConfig(root=root, stdin_paths=[outside.resolve()])
+    included, skipped = scan(config)
+
+    assert included == []
+    assert skipped == [SkipRecord("../outside.txt", "outside_root")]
+
+
+def test_stdin_paths_dedup_not_file_and_excluded_dir(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "ok.txt").write_text("ok", encoding="utf-8")
+    nested = root / "nested"
+    nested.mkdir()
+    excluded_dir = root / "excluded_dir"
+    excluded_dir.mkdir()
+    (excluded_dir / "secret.txt").write_text("secret", encoding="utf-8")
+
+    config = PackConfig(
+        root=root,
+        stdin_paths=[
+            nested.resolve(),  # directory should be skipped as not_file
+            (excluded_dir / "secret.txt").resolve(),  # filtered by excluded_dir
+            (root / "ok.txt").resolve(),
+            (root / "ok.txt").resolve(),  # duplicate should be ignored
+        ],
+        exclude_dirs=["excluded_dir"],
+    )
+    included, skipped = scan(config)
+
+    assert [record.relpath for record in included] == ["ok.txt"]
+    assert skipped == [
+        SkipRecord("nested", "not_file"),
+        SkipRecord("excluded_dir/secret.txt", "excluded_dir"),
+    ]

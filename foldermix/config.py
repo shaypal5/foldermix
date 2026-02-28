@@ -114,6 +114,7 @@ SENSITIVE_PATTERNS: set[str] = {
 @dataclass(slots=True)
 class PackConfig:
     root: Path
+    stdin_paths: list[Path] | None = None
     out: Path | None = None
     format: Literal["md", "xml", "jsonl"] = "md"
     include_ext: list[str] | None = None
