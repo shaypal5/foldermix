@@ -102,6 +102,8 @@ Use `--print-effective-config` on any command to inspect the merged result with 
 |------|--------|----------------|
 | `test_cli.py` | — | CLI argument validation, config construction, all four commands |
 | `test_cli_entrypoint.py` | — | CLI entry-point smoke (`foldermix --help`) |
+| `test_config_loader.py` | — | Raw config file loading, path resolution, error reporting |
+| `test_effective_config.py` | — | Merging of defaults, CLI flags, and config files into the effective config |
 | `test_converters.py` | — | Converter registry, PDF/Office/markitdown/text converters |
 | `test_converters_fallback.py` | — | Graceful degradation when optional extras are absent |
 | `test_packer.py` | — | Core `packer.pack()` logic, error handling, oversize policy |
