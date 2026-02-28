@@ -140,7 +140,7 @@ pytest -o addopts= tests/integration/test_pack_outputs.py -m integration -v
 
 | Workflow | Trigger | Key jobs |
 |----------|---------|----------|
-| `ci.yml` | Every push / PR | `lint` → `smoke` → `minimal-deps` → `package-smoke` → `full` (coverage gate) → `publish-pypi` → `update-homebrew-tap` |
+| `ci.yml` | `pull_request` + `push` to `main` | `lint` → `smoke` → `minimal-deps` → `package-smoke` → `full` (coverage gate) → `publish-pypi` → `update-homebrew-tap` |
 | `mutation.yml` | Weekly Sat 09:00 UTC + `workflow_dispatch` | `mutmut` on core source modules |
 | `perf-smoke.yml` | Weekly Sun 09:00 UTC + `workflow_dispatch` | Performance smoke (1,500 files) |
 | `security-audit.yml` | Weekly Mon 09:00 UTC + `pyproject.toml` changes | `pip-audit` dependency CVE scan |
