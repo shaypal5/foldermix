@@ -147,9 +147,7 @@ def test_stdin_paths_outside_root_are_skipped(tmp_path: Path) -> None:
     assert skipped == [SkipRecord("../outside.txt", "outside_root")]
 
 
-def test_stdin_paths_outside_root_relpath_valueerror_fallback(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_stdin_paths_outside_root_relpath_valueerror_fallback(tmp_path: Path, monkeypatch) -> None:
     root = tmp_path / "root"
     root.mkdir()
     outside = tmp_path / "outside.txt"
