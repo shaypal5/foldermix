@@ -59,7 +59,7 @@ Reads `foldermix.toml` (auto-discovered by walking up from the target path, or e
 `pack(config) -> None` orchestrates: scan → parallel convert (`ThreadPoolExecutor`) → sort results back to deterministic order → write via the chosen writer → optionally write a JSON report.
 
 ### `foldermix/writers/`
-Each writer implements the `Writer` protocol from `writers/base.py`:
+Each writer subclasses the `Writer` base class from `writers/base.py`:
 ```python
 def write(self, out: IO[str], header: HeaderInfo, items: list[FileBundleItem]) -> None: ...
 ```
