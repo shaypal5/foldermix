@@ -282,7 +282,7 @@ tests/integration/fixtures/
 
 | Workflow file | Trigger | Jobs |
 |---------------|---------|------|
-| `ci.yml` | Every push / PR | `lint` → `smoke` (Python 3.10–3.12 on Ubuntu; Python 3.12 on macOS & Windows) → `minimal-deps` → `package-smoke` → `full` (coverage gate + Codecov) → `publish-pypi` → `update-homebrew-tap` |
+| `ci.yml` | Every push / PR | `lint` → `smoke` (Python 3.10–3.12 on Ubuntu; Python 3.12 on macOS & Windows) → `minimal-deps` → `package-smoke` → `full` (coverage gate + Codecov) → `publish-pypi` → `update-homebrew-tap` → `release-consumer-smoke-pypi` + `release-consumer-smoke-homebrew` |
 | `mutation.yml` | Weekly (Sat 09:00 UTC) + `workflow_dispatch` | `mutmut` on core source modules |
 | `perf-smoke.yml` | Weekly (Sun 09:00 UTC) + `workflow_dispatch` | Performance smoke test (1,500 files, ≤ 25 s) |
 | `security-audit.yml` | Weekly (Mon 09:00 UTC) + `pyproject.toml` changes + `workflow_dispatch` | `pip-audit` dependency vulnerability scan |
@@ -296,6 +296,9 @@ tests/integration/fixtures/
 - **`full`** – Runs the complete pytest suite with `--cov-report=xml` and uploads the coverage report to Codecov. Requires all earlier jobs to pass.
 - **`publish-pypi`** – Runs only on pushes to `main`. Detects a version bump in `pyproject.toml` by comparing `HEAD` against `HEAD^`. If a bump is detected, builds and publishes to PyPI via OIDC trusted publishing.
 - **`update-homebrew-tap`** – Runs after a successful `publish-pypi`. Calls `scripts/render_homebrew_formula.py` to generate a new Homebrew formula and pushes it to `shaypal5/homebrew-tap` using the `HOMEBREW_TAP_GITHUB_TOKEN` secret.
+- **`release-consumer-smoke-pypi`** – Runs on release publish pushes (`main` + version bump). Installs `foldermix==<released_version>` from PyPI on Linux and runs black-box `version`/`list`/`pack` checks.
+- **`release-consumer-smoke-homebrew`** – Runs on release publish pushes after tap update. Installs from `shaypal5/tap` on macOS and runs black-box `version`/`list`/`pack` checks.
+- Both release-consumer jobs upload diagnostic artifacts (`release-consumer-logs`) to simplify install/runtime failure triage.
 
 ### Release PR Process
 
@@ -321,7 +324,7 @@ A release is triggered by merging a PR to `main` that bumps the `version` field 
 
 4. **Open the PR** targeting `main` and wait for all CI jobs to pass.
 
-5. **Merge to `main`**. The `publish-pypi` job will detect the version bump, build the wheel, and publish to PyPI automatically. The `update-homebrew-tap` job will then update the Homebrew formula.
+5. **Merge to `main`**. The `publish-pypi` job will detect the version bump, build the wheel, and publish to PyPI automatically. The `update-homebrew-tap` job will then update the Homebrew formula, and release-consumer smoke jobs will validate fresh installs from both PyPI and Homebrew.
 
 > **Note:** If `HOMEBREW_TAP_GITHUB_TOKEN` is not configured the tap-update step is silently skipped. Configure it as a repository secret with write access to `shaypal5/homebrew-tap` before the first release.
 

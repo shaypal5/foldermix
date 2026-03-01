@@ -297,3 +297,174 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "foldermix ${{ needs.publish-pypi.outputs.version }}"
           git push
+
+  release-consumer-smoke-pypi:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.publish-pypi.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    needs: [publish-pypi]
+    permissions:
+      contents: read
+    env:
+      RELEASE_VERSION: ${{ needs.publish-pypi.outputs.version }}
+    steps:
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Smoke test published PyPI package
+        run: |
+          set -euo pipefail
+          mkdir -p release-consumer-logs
+          log_file="release-consumer-logs/pypi-smoke.log"
+          exec > >(tee -a "$log_file") 2>&1
+
+          fail() {
+            echo "::error::$1"
+            exit 1
+          }
+
+          run_expect_zero() {
+            set +e
+            output="$("$@" 2>&1)"
+            status=$?
+            set -e
+            if [ "$status" -ne 0 ]; then
+              echo "$output"
+              fail "Command failed (exit $status): $*"
+            fi
+            printf "%s" "$output"
+          }
+
+          assert_contains() {
+            haystack="$1"
+            needle="$2"
+            if ! printf "%s" "$haystack" | grep -Fq "$needle"; then
+              echo "Expected output to contain: $needle"
+              echo "Actual output:"
+              printf "%s\n" "$haystack"
+              fail "Output assertion failed."
+            fi
+          }
+
+          echo "Release consumer smoke (PyPI) for version: ${RELEASE_VERSION}"
+          python -m venv .release-consumer-venv
+          ./.release-consumer-venv/bin/python -m pip install --upgrade pip
+
+          install_ok=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            echo "Attempt ${attempt}: pip install foldermix==${RELEASE_VERSION}"
+            if ./.release-consumer-venv/bin/pip install "foldermix==${RELEASE_VERSION}"; then
+              install_ok=1
+              break
+            fi
+            echo "Install attempt ${attempt} failed; waiting for PyPI propagation..."
+            sleep 15
+          done
+          if [ "$install_ok" -ne 1 ]; then
+            fail "Could not install foldermix==${RELEASE_VERSION} from PyPI after retries."
+          fi
+
+          version_out="$(run_expect_zero ./.release-consumer-venv/bin/foldermix version)"
+          assert_contains "$version_out" "foldermix ${RELEASE_VERSION}"
+
+          import_out="$(
+            run_expect_zero ./.release-consumer-venv/bin/python -c \
+              "import foldermix; print(foldermix.__version__)"
+          )"
+          assert_contains "$import_out" "${RELEASE_VERSION}"
+
+          mkdir -p smoke_input
+          printf "hello\n" > smoke_input/a.txt
+
+          list_out="$(run_expect_zero ./.release-consumer-venv/bin/foldermix list smoke_input)"
+          assert_contains "$list_out" "a.txt"
+          assert_contains "$list_out" "1 files would be included, 0 skipped."
+
+          pack_out="$(
+            run_expect_zero ./.release-consumer-venv/bin/foldermix pack smoke_input --out release_consumer_output.md
+          )"
+          assert_contains "$pack_out" "Done!"
+          test -f release_consumer_output.md || fail "Expected output file release_consumer_output.md was not created."
+      - name: Upload PyPI consumer smoke logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-consumer-smoke-pypi-${{ github.run_id }}
+          path: release-consumer-logs
+          retention-days: 14
+
+  release-consumer-smoke-homebrew:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.publish-pypi.outputs.should_publish == 'true'
+    runs-on: macos-latest
+    needs: [publish-pypi, update-homebrew-tap]
+    permissions:
+      contents: read
+    env:
+      RELEASE_VERSION: ${{ needs.publish-pypi.outputs.version }}
+    steps:
+      - name: Smoke test published Homebrew formula
+        run: |
+          set -euo pipefail
+          mkdir -p release-consumer-logs
+          log_file="release-consumer-logs/homebrew-smoke.log"
+          exec > >(tee -a "$log_file") 2>&1
+
+          fail() {
+            echo "::error::$1"
+            exit 1
+          }
+
+          run_expect_zero() {
+            set +e
+            output="$("$@" 2>&1)"
+            status=$?
+            set -e
+            if [ "$status" -ne 0 ]; then
+              echo "$output"
+              fail "Command failed (exit $status): $*"
+            fi
+            printf "%s" "$output"
+          }
+
+          assert_contains() {
+            haystack="$1"
+            needle="$2"
+            if ! printf "%s" "$haystack" | grep -Fq "$needle"; then
+              echo "Expected output to contain: $needle"
+              echo "Actual output:"
+              printf "%s\n" "$haystack"
+              fail "Output assertion failed."
+            fi
+          }
+
+          echo "Release consumer smoke (Homebrew) for version: ${RELEASE_VERSION}"
+          brew update
+          brew tap shaypal5/tap
+          brew uninstall --ignore-dependencies foldermix || true
+          brew install shaypal5/tap/foldermix
+
+          version_out="$(run_expect_zero foldermix version)"
+          assert_contains "$version_out" "foldermix ${RELEASE_VERSION}"
+
+          mkdir -p smoke_input
+          printf "hello\n" > smoke_input/a.txt
+
+          list_out="$(run_expect_zero foldermix list smoke_input)"
+          assert_contains "$list_out" "a.txt"
+          assert_contains "$list_out" "1 files would be included, 0 skipped."
+
+          pack_out="$(run_expect_zero foldermix pack smoke_input --out release_consumer_output.md)"
+          assert_contains "$pack_out" "Done!"
+          test -f release_consumer_output.md || fail "Expected output file release_consumer_output.md was not created."
+      - name: Upload Homebrew consumer smoke logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-consumer-smoke-homebrew-${{ github.run_id }}
+          path: release-consumer-logs
+          retention-days: 14
