@@ -324,9 +324,9 @@ A release is triggered by merging a PR to `main` that bumps the `version` field 
 
 4. **Open the PR** targeting `main` and wait for all CI jobs to pass.
 
-5. **Merge to `main`**. The `publish-pypi` job will detect the version bump, build the wheel, and publish to PyPI automatically. The `update-homebrew-tap` job will then update the Homebrew formula, and release-consumer smoke jobs will validate fresh installs from both PyPI and Homebrew.
+5. **Merge to `main`**. The `publish-pypi` job will detect the version bump, build the wheel, and publish to PyPI automatically. The `update-homebrew-tap` job will then update the Homebrew formula, and release-consumer smoke jobs will validate fresh installs from PyPI and, when tap credentials are configured, from Homebrew.
 
-> **Note:** If `HOMEBREW_TAP_GITHUB_TOKEN` is not configured the tap-update step is silently skipped. Configure it as a repository secret with write access to `shaypal5/homebrew-tap` before the first release.
+> **Note:** If `HOMEBREW_TAP_GITHUB_TOKEN` is not configured, both tap update and Homebrew release-consumer smoke are skipped. Configure it as a repository secret with write access to `shaypal5/homebrew-tap` before the first release.
 
 ## License
 

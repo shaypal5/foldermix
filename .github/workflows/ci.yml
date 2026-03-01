@@ -251,36 +251,46 @@ jobs:
       needs.publish-pypi.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     needs: [publish-pypi]
+    outputs:
+      tap_update_enabled: ${{ steps.tap_guard.outputs.tap_update_enabled }}
     permissions:
       contents: read
     env:
       TAP_REPOSITORY: shaypal5/homebrew-tap
       HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
     steps:
+      - name: Detect whether tap updates are enabled
+        id: tap_guard
+        run: |
+          if [ -n "${HOMEBREW_TAP_GITHUB_TOKEN}" ]; then
+            echo "tap_update_enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tap_update_enabled=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Skip tap update (token not configured)
-        if: env.HOMEBREW_TAP_GITHUB_TOKEN == ''
+        if: steps.tap_guard.outputs.tap_update_enabled != 'true'
         run: echo "No HOMEBREW_TAP_GITHUB_TOKEN configured; skipping tap update."
       - uses: actions/checkout@v4
-        if: env.HOMEBREW_TAP_GITHUB_TOKEN != ''
+        if: steps.tap_guard.outputs.tap_update_enabled == 'true'
       - uses: actions/setup-python@v6
-        if: env.HOMEBREW_TAP_GITHUB_TOKEN != ''
+        if: steps.tap_guard.outputs.tap_update_enabled == 'true'
         with:
           python-version: "3.12"
       - name: Render Homebrew formula from published version
-        if: env.HOMEBREW_TAP_GITHUB_TOKEN != ''
+        if: steps.tap_guard.outputs.tap_update_enabled == 'true'
         run: |
           python scripts/render_homebrew_formula.py \
             --version "${{ needs.publish-pypi.outputs.version }}" \
             --output /tmp/foldermix.rb
       - name: Checkout tap repository
-        if: env.HOMEBREW_TAP_GITHUB_TOKEN != ''
+        if: steps.tap_guard.outputs.tap_update_enabled == 'true'
         uses: actions/checkout@v4
         with:
           repository: ${{ env.TAP_REPOSITORY }}
           token: ${{ env.HOMEBREW_TAP_GITHUB_TOKEN }}
           path: homebrew-tap
       - name: Update tap formula and push
-        if: env.HOMEBREW_TAP_GITHUB_TOKEN != ''
+        if: steps.tap_guard.outputs.tap_update_enabled == 'true'
         run: |
           set -euo pipefail
           mkdir -p homebrew-tap/Formula
@@ -399,7 +409,8 @@ jobs:
     if: >-
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
-      needs.publish-pypi.outputs.should_publish == 'true'
+      needs.publish-pypi.outputs.should_publish == 'true' &&
+      needs.update-homebrew-tap.outputs.tap_update_enabled == 'true'
     runs-on: macos-latest
     needs: [publish-pypi, update-homebrew-tap]
     permissions:
