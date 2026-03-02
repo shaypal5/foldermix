@@ -536,6 +536,23 @@ def test_load_command_config_accepts_policy_rules_tables(tmp_path: Path) -> None
     ]
 
 
+def test_load_command_config_accepts_policy_pack_string(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'policy_pack = "strict-privacy"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    values, _ = load_command_config("pack", root=tmp_path, config_path=config_path)
+    assert values["policy_pack"] == "strict-privacy"
+
+
 def test_load_command_config_rejects_policy_rule_without_matchers(tmp_path: Path) -> None:
     config_path = tmp_path / "foldermix.toml"
     config_path.write_text(
@@ -575,6 +592,25 @@ def test_load_command_config_rejects_policy_rules_when_not_a_list(tmp_path: Path
         load_command_config("pack", root=tmp_path, config_path=config_path)
 
     assert "expected a list of policy rule tables" in str(exc.value)
+
+
+def test_load_command_config_rejects_non_string_policy_pack(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                "policy_pack = 1",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigLoadError) as exc:
+        load_command_config("pack", root=tmp_path, config_path=config_path)
+
+    assert "policy_pack: expected a non-empty string" in str(exc.value)
 
 
 def test_load_command_config_rejects_policy_rule_entry_when_not_table(tmp_path: Path) -> None:

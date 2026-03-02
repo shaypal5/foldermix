@@ -18,6 +18,7 @@ from .converters.pptx_fallback import PptxFallbackConverter
 from .converters.text import TextConverter
 from .converters.xlsx_fallback import XlsxFallbackConverter
 from .policy import PolicyEvaluator, normalize_policy_rules
+from .policy_packs import combine_policy_rules
 from .report import (
     ReportData,
     build_included_file_entry,
@@ -169,11 +170,20 @@ def _convert_record(
 def pack(config: PackConfig) -> None:
     """Main entry point for packing."""
     policy_evaluator: PolicyEvaluator | None = None
-    if config.policy_rules:
+    try:
+        raw_policy_rules = combine_policy_rules(
+            policy_pack=config.policy_pack,
+            policy_rules=config.policy_rules,
+        )
+    except ValueError as exc:
+        console.print(f"[red]Invalid policy configuration:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if raw_policy_rules:
         try:
-            policy_rules = normalize_policy_rules(config.policy_rules)
+            policy_rules = normalize_policy_rules(raw_policy_rules)
         except ValueError as exc:
-            console.print(f"[red]Invalid policy_rules:[/red] {exc}")
+            console.print(f"[red]Invalid policy configuration:[/red] {exc}")
             raise typer.Exit(code=1) from exc
         policy_evaluator = PolicyEvaluator(policy_rules)
 

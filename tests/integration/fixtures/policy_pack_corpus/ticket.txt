@@ -1,0 +1,2 @@
+Customer email: alice@example.com
+Phone: +1 415-555-0101

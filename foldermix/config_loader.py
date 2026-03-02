@@ -39,6 +39,7 @@ _COMMAND_KEYS: dict[str, set[str]] = {
         "include_toc",
         "pdf_ocr",
         "pdf_ocr_strict",
+        "policy_pack",
         "policy_rules",
     },
     "list": {"include_ext", "exclude_ext", "hidden", "respect_gitignore"},
@@ -134,6 +135,12 @@ def _coerce_list_str(value: Any, key: str, errors: list[str], *, where: str) -> 
 
 
 def _coerce_value(key: str, value: Any, errors: list[str], *, where: str) -> Any:
+    if key == "policy_pack":
+        if not isinstance(value, str) or not value.strip():
+            errors.append(f"{where}.policy_pack: expected a non-empty string")
+            return value
+        return value
+
     if key == "policy_rules":
         return _coerce_policy_rules(value, errors, where=where)
 

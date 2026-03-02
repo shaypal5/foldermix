@@ -289,6 +289,33 @@ content_regex = "SECRET_[0-9]+"
 Each rule must include at least one matcher key:
 `path_glob`, `ext_in`, `skip_reason_in`, `content_regex`, `max_size_bytes`, `max_total_bytes`, or `max_file_count`.
 
+### Built-in Policy Packs
+
+Use `--policy-pack` to apply a built-in rule bundle:
+
+```bash
+foldermix pack . --policy-pack strict-privacy --report report.json
+```
+
+Or persist it in `foldermix.toml`:
+
+```toml
+[pack]
+policy_pack = "strict-privacy" # strict-privacy | legal-hold | customer-support
+```
+
+Pack intents and tradeoffs:
+
+- `strict-privacy`:
+  prioritize deny-level findings for direct PII/secret markers; higher false-positive tolerance.
+- `legal-hold`:
+  advisory warnings for legal-retention signals (privileged/destruction markers, hidden-scan coverage).
+- `customer-support`:
+  advisory findings focused on contact PII and log-like support artifacts.
+
+`policy_pack` rules are combined with explicit `policy_rules` (pack rules first, then custom rules).
+Unknown pack names fail with a clear validation error.
+
 ## Troubleshooting
 
 - `--null` requires `--stdin`
