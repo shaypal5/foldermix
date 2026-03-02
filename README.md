@@ -254,7 +254,7 @@ Canonical reason-code groups:
 
 ## Troubleshooting
 
-- `--null requires --stdin`
+- `--null` requires `--stdin`
   - `--null` is only valid when reading explicit paths from standard input.
 - `No module named ...` or converter-specific warnings for PDF/Office/OCR
   - install matching extras, for example: `pip install "foldermix[pdf]"`, `pip install "foldermix[ocr]"`, or `pip install "foldermix[office]"`.
