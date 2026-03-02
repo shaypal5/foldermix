@@ -22,41 +22,49 @@ brew tap shaypal5/tap
 brew install foldermix
 ```
 
-## Quick Start
+## Quick Start (Config-First)
+
+`foldermix` is designed around a checked-in (or local) `foldermix.toml`, then command-level overrides only when needed.
+
+1. Bootstrap a starter config for your use case:
 
 ```bash
-# Pack current directory to markdown
-foldermix pack .
-
-# Pack to XML format
-foldermix pack . --format xml
-
-# Pack to JSONL format
-foldermix pack . --format jsonl --out context.jsonl
-
-# Dry run - list files without packing
-foldermix pack . --dry-run
-
-# List files that would be included
-foldermix list .
-
-# Show statistics
-foldermix stats .
-
-# Read explicit file list from stdin
-printf 'a.txt\nnotes/b.txt\n' | foldermix pack . --stdin --format jsonl --out context.jsonl
-
-# Read NUL-delimited file list from find -print0
-find . -type f -print0 | foldermix pack . --stdin --null --format md --out context.md
-
-# Print merged effective config (defaults + config + CLI) and exit
-foldermix pack . --config foldermix.toml --print-effective-config
-
-# Show version
-foldermix version
-
-# Bootstrap a local config profile
 foldermix init --profile engineering-docs
+```
+
+2. Inspect the merged effective config (defaults -> TOML -> CLI) before packing:
+
+```bash
+foldermix pack . --config foldermix.toml --print-effective-config
+```
+
+3. Preview what will be included:
+
+```bash
+foldermix list . --config foldermix.toml
+foldermix stats . --config foldermix.toml
+```
+
+4. Run the pack and emit a machine-readable report:
+
+```bash
+foldermix pack . --config foldermix.toml --format md --out context.md --report report.json
+```
+
+5. Use explicit file-list pipelines for batch workflows:
+
+```bash
+# Newline-delimited
+printf 'a.txt\nnotes/b.txt\n' | foldermix pack . --config foldermix.toml --stdin --format jsonl --out context.jsonl
+
+# NUL-delimited (find -print0 compatible)
+find . -type f -print0 | foldermix pack . --config foldermix.toml --stdin --null --format md --out context.md
+```
+
+6. Show installed version:
+
+```bash
+foldermix version
 ```
 
 ## Features
@@ -103,12 +111,40 @@ Available profiles:
 - `support` - ticket/runbook focused filters with full redaction defaults.
 - `engineering-docs` - technical docs profile with frontmatter stripping and no redaction.
 
-## Options
+## Workflow Recipes
+
+Use these end-to-end patterns as starting points for local-folder runs.
+
+### Legal Review Bundle
+
+```bash
+foldermix init --profile legal --out foldermix.toml --force
+foldermix pack ./matter --config foldermix.toml --format md --out legal-context.md --report legal-report.json
+```
+
+### Research Corpus Bundle (Batch Input)
+
+```bash
+foldermix init --profile research --out foldermix.toml --force
+find ./corpus -type f -print0 | foldermix pack ./corpus --config foldermix.toml --stdin --null --format jsonl --out research-context.jsonl --report research-report.json
+```
+
+### Support Incident Bundle (Explicit Path List)
+
+```bash
+foldermix init --profile support --out foldermix.toml --force
+printf 'tickets/a.md\ntickets/b.log\n' | foldermix pack . --config foldermix.toml --stdin --format md --out support-context.md --report support-report.json
+```
+
+For a longer config-first walkthrough, see [docs/config-first-workflows.md](docs/config-first-workflows.md).
+
+## Command Reference
 
 ```
 foldermix pack [OPTIONS] [PATH]
 
 Options:
+  --config PATH                 Path to foldermix TOML config file
   -o, --out PATH                Output file path
   -f, --format TEXT             Output format: md, xml, jsonl [default: md]
   --include-ext TEXT            Comma-separated extensions to include
@@ -136,6 +172,33 @@ Options:
   --pdf-ocr-strict / --no-pdf-ocr-strict  Fail when OCR is needed but unavailable/empty [default: disabled]
   --stdin                        Read explicit file paths from standard input instead of recursive scanning
   --null                         Parse stdin as NUL-delimited paths (for find -print0); requires --stdin
+  --print-effective-config       Print merged effective config with value sources and exit
+```
+
+Additional commands:
+
+```text
+foldermix list [OPTIONS] [PATH]
+  --config PATH
+  --include-ext TEXT
+  --exclude-ext TEXT
+  --hidden
+  --respect-gitignore / --no-respect-gitignore
+  --stdin
+  --null
+  --print-effective-config
+
+foldermix stats [OPTIONS] [PATH]
+  --config PATH
+  --include-ext TEXT
+  --hidden
+  --stdin
+  --null
+  --print-effective-config
+
+foldermix init --profile <legal|research|support|engineering-docs> [--out PATH] [--force]
+
+foldermix version
 ```
 
 ## Report Schema
@@ -188,6 +251,20 @@ Canonical reason-code groups:
 
 - Skip reasons: `SKIP_HIDDEN`, `SKIP_EXCLUDED_DIR`, `SKIP_SENSITIVE`, `SKIP_GITIGNORED`, `SKIP_EXCLUDED_GLOB`, `SKIP_EXCLUDED_EXT`, `SKIP_UNREADABLE`, `SKIP_OVERSIZE`, `SKIP_OUTSIDE_ROOT`, `SKIP_MISSING`, `SKIP_NOT_FILE`, `SKIP_UNKNOWN` (fallback when a skip reason cannot be mapped to a specific code)
 - Included-file outcomes: `OUTCOME_TRUNCATED`, `OUTCOME_REDACTED`, `OUTCOME_CONVERSION_WARNING`
+
+## Troubleshooting
+
+- `--null` requires `--stdin`
+  - `--null` is only valid when reading explicit paths from standard input.
+- `No module named ...` or converter-specific warnings for PDF/Office/OCR
+  - install matching extras, for example: `pip install "foldermix[pdf]"`, `pip install "foldermix[ocr]"`, or `pip install "foldermix[office]"`.
+- Expected files are missing from output
+  - run `foldermix list . --config foldermix.toml` first to inspect skip behavior.
+  - check `.gitignore`, hidden-path defaults, extension/glob filters, and sensitive-file protection.
+- Need to see exactly which layer set each value
+  - use `--print-effective-config` on `pack`, `list`, or `stats`.
+- `stdin` path list includes files outside target root
+  - these are skipped with structured reason codes (for example `SKIP_OUTSIDE_ROOT`) and included in `--report`.
 
 ## Security
 
