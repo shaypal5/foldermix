@@ -118,6 +118,7 @@ def test_pack_loads_values_from_config_file(monkeypatch, tmp_path: Path) -> None
                 'include_ext = [".py", ".md"]',
                 "include_sha256 = false",
                 "pdf_ocr = true",
+                'policy_pack = "legal-hold"',
                 "",
                 "[[pack.policy_rules]]",
                 'rule_id = "scan-large"',
@@ -138,6 +139,7 @@ def test_pack_loads_values_from_config_file(monkeypatch, tmp_path: Path) -> None
     assert config.include_ext == [".py", ".md"]
     assert config.include_sha256 is False
     assert config.pdf_ocr is True
+    assert config.policy_pack == "legal-hold"
     assert config.policy_rules == [
         {
             "rule_id": "scan-large",
@@ -163,6 +165,7 @@ def test_pack_cli_flags_override_config_values(monkeypatch, tmp_path: Path) -> N
                 "[pack]",
                 'format = "xml"',
                 "include_toc = false",
+                'policy_pack = "legal-hold"',
                 "",
             ]
         ),
@@ -179,6 +182,8 @@ def test_pack_cli_flags_override_config_values(monkeypatch, tmp_path: Path) -> N
             "--format",
             "jsonl",
             "--include-toc",
+            "--policy-pack",
+            "strict-privacy",
         ],
     )
 
@@ -186,6 +191,7 @@ def test_pack_cli_flags_override_config_values(monkeypatch, tmp_path: Path) -> N
     config = captured["config"]
     assert config.format == "jsonl"
     assert config.include_toc is True
+    assert config.policy_pack == "strict-privacy"
 
 
 def test_pack_reports_invalid_config(tmp_path: Path) -> None:

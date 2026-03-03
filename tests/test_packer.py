@@ -328,6 +328,58 @@ def test_pack_policy_scan_evaluates_skipped_records(tmp_path: Path) -> None:
     assert finding["reason_code"] == "POLICY_SKIP_REASON_MATCH"
 
 
+def test_pack_rejects_unknown_policy_pack(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_text("hello\n", encoding="utf-8")
+    config = PackConfig(
+        root=tmp_path,
+        out=tmp_path / "out.md",
+        workers=1,
+        policy_pack="does-not-exist",
+    )
+
+    with pytest.raises(typer.Exit) as exc_info:
+        packer.pack(config)
+
+    assert exc_info.value.exit_code == 1
+
+
+def test_pack_combines_builtin_policy_pack_with_custom_rules(tmp_path: Path) -> None:
+    (tmp_path / "ticket.txt").write_text(
+        "Customer email: alice@example.com\nPhone: +1 415-555-0101\n",
+        encoding="utf-8",
+    )
+    (tmp_path / ".env").write_text("TOKEN=abc123\n", encoding="utf-8")
+    out_path = tmp_path / "out.jsonl"
+    report_path = tmp_path / "report.json"
+    config = PackConfig(
+        root=tmp_path,
+        out=out_path,
+        format="jsonl",
+        report=report_path,
+        workers=1,
+        include_sha256=False,
+        policy_pack="customer-support",
+        policy_rules=[
+            {
+                "rule_id": "custom-hidden-scan",
+                "description": "Flag hidden skips",
+                "stage": "scan",
+                "skip_reason_in": ["hidden"],
+                "severity": "high",
+                "action": "deny",
+            }
+        ],
+    )
+
+    packer.pack(config)
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    rule_ids = {finding["rule_id"] for finding in report["policy_findings"]}
+    assert "customer-support-contact-email" in rule_ids
+    assert "customer-support-contact-phone" in rule_ids
+    assert "custom-hidden-scan" in rule_ids
+
+
 def test_pack_keeps_deterministic_order_after_parallel_conversion(
     tmp_path: Path, monkeypatch
 ) -> None:

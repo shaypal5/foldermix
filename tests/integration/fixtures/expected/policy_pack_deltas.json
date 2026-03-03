@@ -1,0 +1,72 @@
+{
+  "customer-support": {
+    "pack_version": 1,
+    "policy_finding_counts": {
+      "by_action": {
+        "warn": 3
+      },
+      "by_reason_code": {
+        "POLICY_CONTENT_REGEX_MATCH": 2,
+        "POLICY_RULE_MATCH": 1
+      },
+      "by_severity": {
+        "low": 1,
+        "medium": 2
+      },
+      "total": 3
+    },
+    "rule_ids": [
+      "customer-support-contact-email",
+      "customer-support-contact-phone",
+      "customer-support-log-file"
+    ]
+  },
+  "legal-hold": {
+    "pack_version": 1,
+    "policy_finding_counts": {
+      "by_action": {
+        "warn": 3
+      },
+      "by_reason_code": {
+        "POLICY_CONTENT_REGEX_MATCH": 2,
+        "POLICY_SKIP_REASON_MATCH": 1
+      },
+      "by_severity": {
+        "high": 1,
+        "low": 1,
+        "medium": 1
+      },
+      "total": 3
+    },
+    "rule_ids": [
+      "legal-hold-destruction-marker",
+      "legal-hold-hidden-scan",
+      "legal-hold-privileged-marker"
+    ]
+  },
+  "strict-privacy": {
+    "pack_version": 1,
+    "policy_finding_counts": {
+      "by_action": {
+        "deny": 3,
+        "warn": 1
+      },
+      "by_reason_code": {
+        "POLICY_CONTENT_REGEX_MATCH": 3,
+        "POLICY_SKIP_REASON_MATCH": 1
+      },
+      "by_severity": {
+        "critical": 1,
+        "high": 2,
+        "medium": 1
+      },
+      "total": 4
+    },
+    "rule_ids": [
+      "strict-privacy-email",
+      "strict-privacy-hidden-or-sensitive-scan",
+      "strict-privacy-phone",
+      "strict-privacy-secret-token"
+    ]
+  }
+}

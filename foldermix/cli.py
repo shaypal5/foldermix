@@ -62,6 +62,7 @@ _PACK_PARAM_BY_KEY = {
     "include_toc": "include_toc",
     "pdf_ocr": "pdf_ocr",
     "pdf_ocr_strict": "pdf_ocr_strict",
+    "policy_pack": "policy_pack",
     "policy_rules": "policy_rules",
 }
 
@@ -229,6 +230,11 @@ def pack_cmd(
         "--pdf-ocr-strict/--no-pdf-ocr-strict",
         help="Fail conversion when OCR is required but unavailable or unsuccessful [default: disabled]",
     ),
+    policy_pack: str | None = typer.Option(
+        None,
+        "--policy-pack",
+        help="Apply a built-in policy pack (strict-privacy, legal-hold, customer-support)",
+    ),
     stdin: bool = typer.Option(
         False,
         "--stdin",
@@ -304,6 +310,7 @@ def pack_cmd(
         "include_toc": include_toc,
         "pdf_ocr": pdf_ocr,
         "pdf_ocr_strict": pdf_ocr_strict,
+        "policy_pack": policy_pack,
         "policy_rules": [],
     }
 
