@@ -83,7 +83,7 @@ def test_build_included_file_entry_deduplicates_outcome_codes() -> None:
     assert entry["outcomes"][0]["warning_code"] == "unclassified_warning"
 
 
-def test_build_included_file_entry_filters_invalid_warning_entries() -> None:
+def test_build_included_file_entry_backfills_invalid_warning_entries() -> None:
     entry = build_included_file_entry(
         path="a.txt",
         size=3,
@@ -97,14 +97,42 @@ def test_build_included_file_entry_filters_invalid_warning_entries() -> None:
         ],
         redact_mode="none",
     )
-    assert entry["warning_codes"] == ["encoding_fallback"]
+    assert entry["warning_codes"] == ["unclassified_warning", "encoding_fallback"]
     assert entry["outcomes"] == [
+        {
+            "code": "OUTCOME_CONVERSION_WARNING",
+            "warning_code": "unclassified_warning",
+            "message": "skip-empty-code",
+        },
+        {
+            "code": "OUTCOME_CONVERSION_WARNING",
+            "warning_code": "encoding_fallback",
+            "message": "1",
+        },
         {
             "code": "OUTCOME_CONVERSION_WARNING",
             "warning_code": "encoding_fallback",
             "message": "valid",
-        }
+        },
     ]
+
+
+def test_build_included_file_entry_backfills_blank_codes_via_classifier() -> None:
+    entry = build_included_file_entry(
+        path="a.txt",
+        size=3,
+        ext=".txt",
+        truncated=False,
+        redacted=False,
+        warning_entries=[
+            {
+                "code": "",
+                "message": "Page 3 has no extractable text and OCR produced no text.",
+            }
+        ],
+        redact_mode="none",
+    )
+    assert entry["warning_codes"] == ["ocr_no_text"]
 
 
 def test_build_warning_code_counts_groups_warning_codes() -> None:

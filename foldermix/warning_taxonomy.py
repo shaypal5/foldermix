@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
 
 WARNING_CODE_ENCODING_FALLBACK = "encoding_fallback"
 WARNING_CODE_OCR_DISABLED = "ocr_disabled"
@@ -11,12 +10,6 @@ WARNING_CODE_OCR_FAILED = "ocr_failed"
 WARNING_CODE_OCR_NO_TEXT = "ocr_no_text"
 WARNING_CODE_CONVERTER_UNAVAILABLE = "converter_unavailable"
 WARNING_CODE_UNCLASSIFIED = "unclassified_warning"
-
-
-@dataclass(frozen=True)
-class WarningEntry:
-    code: str
-    message: str
 
 
 def classify_warning_message(message: str) -> str:

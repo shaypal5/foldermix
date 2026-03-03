@@ -5,7 +5,11 @@ from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from .warning_taxonomy import normalize_warning_entries
+from .warning_taxonomy import (
+    WARNING_CODE_UNCLASSIFIED,
+    classify_warning_message,
+    normalize_warning_entries,
+)
 
 REPORT_SCHEMA_VERSION = 4
 
@@ -124,15 +128,7 @@ def build_included_file_entry(
 ) -> dict:
     normalized_warning_entries: list[dict[str, str]]
     if warning_entries is not None:
-        normalized_warning_entries = []
-        for warning in warning_entries:
-            code = warning.get("code")
-            message = warning.get("message")
-            if not isinstance(code, str) or not code.strip():
-                continue
-            if not isinstance(message, str):
-                continue
-            normalized_warning_entries.append({"code": code, "message": message})
+        normalized_warning_entries = _normalize_warning_entries_from_entries(warning_entries)
     else:
         normalized_warning_entries = normalize_warning_entries(warning_messages or [])
 
@@ -192,21 +188,8 @@ def build_reason_code_counts(
             code_str = str(code)
             counts[code_str] = counts.get(code_str, 0) + 1
 
-        outcome_warning_codes: list[str] = []
-        for outcome in entry.get("outcomes", []):
-            if not isinstance(outcome, dict):
-                continue
-            warning_code = outcome.get("warning_code")
-            if isinstance(warning_code, str):
-                outcome_warning_codes.append(warning_code)
-
-        if outcome_warning_codes:
-            for warning_code in outcome_warning_codes:
-                counts[warning_code] = counts.get(warning_code, 0) + 1
-        else:
-            for warning_code in entry.get("warning_codes", []):
-                warning_code_str = str(warning_code)
-                counts[warning_code_str] = counts.get(warning_code_str, 0) + 1
+        for warning_code in _iter_warning_codes(entry):
+            counts[warning_code] = counts.get(warning_code, 0) + 1
 
     return dict(sorted(counts.items()))
 
@@ -214,22 +197,42 @@ def build_reason_code_counts(
 def build_warning_code_counts(*, included_files: list[dict]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for entry in included_files:
-        outcome_warning_codes: list[str] = []
-        for outcome in entry.get("outcomes", []):
-            if not isinstance(outcome, dict):
-                continue
-            warning_code = outcome.get("warning_code")
-            if isinstance(warning_code, str):
-                outcome_warning_codes.append(warning_code)
-
-        if outcome_warning_codes:
-            for warning_code in outcome_warning_codes:
-                counts[warning_code] = counts.get(warning_code, 0) + 1
-        else:
-            for warning_code in entry.get("warning_codes", []):
-                warning_code_str = str(warning_code)
-                counts[warning_code_str] = counts.get(warning_code_str, 0) + 1
+        for warning_code in _iter_warning_codes(entry):
+            counts[warning_code] = counts.get(warning_code, 0) + 1
     return dict(sorted(counts.items()))
+
+
+def _normalize_warning_entries_from_entries(
+    warning_entries: Iterable[dict[str, str]],
+) -> list[dict[str, str]]:
+    normalized_warning_entries: list[dict[str, str]] = []
+    for warning in warning_entries:
+        raw_code = warning.get("code")
+        raw_message = warning.get("message")
+
+        message = raw_message if isinstance(raw_message, str) else str(raw_message)
+        if isinstance(raw_code, str) and raw_code.strip():
+            code = raw_code.strip()
+        else:
+            code = classify_warning_message(message)
+            if not code:
+                code = WARNING_CODE_UNCLASSIFIED
+
+        normalized_warning_entries.append({"code": code, "message": message})
+    return normalized_warning_entries
+
+
+def _iter_warning_codes(entry: dict) -> list[str]:
+    outcome_warning_codes: list[str] = []
+    for outcome in entry.get("outcomes", []):
+        if not isinstance(outcome, dict):
+            continue
+        warning_code = outcome.get("warning_code")
+        if isinstance(warning_code, str):
+            outcome_warning_codes.append(warning_code)
+    if outcome_warning_codes:
+        return outcome_warning_codes
+    return [str(warning_code) for warning_code in entry.get("warning_codes", [])]
 
 
 def build_policy_finding_counts(*, policy_findings: list[dict]) -> dict[str, object]:
