@@ -380,6 +380,152 @@ def test_pack_combines_builtin_policy_pack_with_custom_rules(tmp_path: Path) -> 
     assert "custom-hidden-scan" in rule_ids
 
 
+def test_pack_fails_with_exit_code_4_when_policy_enforcement_triggered(tmp_path: Path) -> None:
+    (tmp_path / "data.txt").write_text("token SECRET_123\n", encoding="utf-8")
+    out_path = tmp_path / "out.jsonl"
+    report_path = tmp_path / "report.json"
+    config = PackConfig(
+        root=tmp_path,
+        out=out_path,
+        format="jsonl",
+        report=report_path,
+        workers=1,
+        include_sha256=False,
+        fail_on_policy_violation=True,
+        policy_fail_level="high",
+        policy_rules=[
+            {
+                "rule_id": "convert-secret",
+                "description": "Secret marker detected",
+                "stage": "convert",
+                "content_regex": "SECRET_[0-9]+",
+                "severity": "high",
+                "action": "deny",
+            }
+        ],
+    )
+
+    with pytest.raises(typer.Exit) as exc_info:
+        packer.pack(config)
+
+    assert exc_info.value.exit_code == 4
+    assert out_path.exists()
+    assert report_path.exists()
+
+
+def test_pack_policy_enforcement_respects_severity_threshold(tmp_path: Path) -> None:
+    (tmp_path / "data.txt").write_text("token SECRET_123\n", encoding="utf-8")
+    out_path = tmp_path / "out.jsonl"
+    config = PackConfig(
+        root=tmp_path,
+        out=out_path,
+        format="jsonl",
+        workers=1,
+        include_sha256=False,
+        fail_on_policy_violation=True,
+        policy_fail_level="critical",
+        policy_rules=[
+            {
+                "rule_id": "convert-secret",
+                "description": "Secret marker detected",
+                "stage": "convert",
+                "content_regex": "SECRET_[0-9]+",
+                "severity": "high",
+                "action": "deny",
+            }
+        ],
+    )
+
+    packer.pack(config)
+    assert out_path.exists()
+
+
+def test_pack_policy_enforcement_ignores_warn_findings(tmp_path: Path) -> None:
+    (tmp_path / "data.txt").write_text("token SECRET_123\n", encoding="utf-8")
+    out_path = tmp_path / "out.jsonl"
+    config = PackConfig(
+        root=tmp_path,
+        out=out_path,
+        format="jsonl",
+        workers=1,
+        include_sha256=False,
+        fail_on_policy_violation=True,
+        policy_fail_level="low",
+        policy_rules=[
+            {
+                "rule_id": "convert-secret-advisory",
+                "description": "Secret marker detected",
+                "stage": "convert",
+                "content_regex": "SECRET_[0-9]+",
+                "severity": "critical",
+                "action": "warn",
+            }
+        ],
+    )
+
+    packer.pack(config)
+    assert out_path.exists()
+
+
+def test_pack_policy_findings_do_not_fail_without_enforcement_flag(tmp_path: Path) -> None:
+    (tmp_path / "data.txt").write_text("token SECRET_123\n", encoding="utf-8")
+    out_path = tmp_path / "out.jsonl"
+    config = PackConfig(
+        root=tmp_path,
+        out=out_path,
+        format="jsonl",
+        workers=1,
+        include_sha256=False,
+        fail_on_policy_violation=False,
+        policy_fail_level="critical",
+        policy_rules=[
+            {
+                "rule_id": "convert-secret",
+                "description": "Secret marker detected",
+                "stage": "convert",
+                "content_regex": "SECRET_[0-9]+",
+                "severity": "critical",
+                "action": "deny",
+            }
+        ],
+    )
+
+    packer.pack(config)
+    assert out_path.exists()
+
+
+def test_count_failing_policy_findings_handles_unknown_or_non_string_severities() -> None:
+    count = packer._count_failing_policy_findings(
+        [
+            {"severity": "medium"},
+            {"severity": "unknown"},
+            {"severity": 1},
+            {},
+        ],
+        min_severity="medium",
+    )
+
+    assert count == 1
+
+
+def test_deny_policy_findings_filters_non_deny_actions() -> None:
+    findings = [
+        {"action": "warn", "severity": "critical"},
+        {"action": "deny", "severity": "medium"},
+        {"action": 1},
+        {},
+    ]
+
+    assert packer._deny_policy_findings(findings) == [{"action": "deny", "severity": "medium"}]
+
+
+def test_format_policy_severity_summary_orders_by_defined_severity() -> None:
+    summary = packer._format_policy_severity_summary(
+        {"critical": 2, "low": 1, "zzz": 3, "medium": 4}
+    )
+    assert summary == "low=1, medium=4, critical=2, zzz=3"
+
+
 def test_pack_keeps_deterministic_order_after_parallel_conversion(
     tmp_path: Path, monkeypatch
 ) -> None:

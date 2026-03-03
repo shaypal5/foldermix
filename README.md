@@ -170,6 +170,8 @@ Options:
   --include-toc / --no-include-toc        [default: include]
   --pdf-ocr / --no-pdf-ocr                Enable OCR fallback for textless PDF pages [default: disabled]
   --pdf-ocr-strict / --no-pdf-ocr-strict  Fail when OCR is needed but unavailable/empty [default: disabled]
+  --fail-on-policy-violation / --no-fail-on-policy-violation  Fail command when policy findings meet threshold [default: disabled]
+  --policy-fail-level TEXT     Minimum severity for policy-failure threshold: low, medium, high, critical [default: low]
   --stdin                        Read explicit file paths from standard input instead of recursive scanning
   --null                         Parse stdin as NUL-delimited paths (for find -print0); requires --stdin
   --print-effective-config       Print merged effective config with value sources and exit
@@ -315,6 +317,26 @@ Pack intents and tradeoffs:
 
 `policy_pack` rules are combined with explicit `policy_rules` (pack rules first, then custom rules).
 Unknown pack names fail with a clear validation error.
+
+### Policy Enforcement Flags (CI/Automation)
+
+Enable deterministic policy-based failure in automation:
+
+```bash
+foldermix pack . \
+  --policy-pack strict-privacy \
+  --fail-on-policy-violation \
+  --policy-fail-level high \
+  --report report.json
+```
+
+Semantics:
+
+- `--fail-on-policy-violation` enables enforcement mode.
+- Only policy findings with `action = "deny"` are enforcement-failing.
+- `--policy-fail-level` sets the minimum severity for those deny findings (`low`, `medium`, `high`, `critical`).
+- Findings are still reported in terminal summary and `--report` output before exiting.
+- Enforcement failures exit with code `4`.
 
 ## Troubleshooting
 

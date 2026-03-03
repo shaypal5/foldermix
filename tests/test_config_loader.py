@@ -553,6 +553,63 @@ def test_load_command_config_accepts_policy_pack_string(tmp_path: Path) -> None:
     assert values["policy_pack"] == "strict-privacy"
 
 
+def test_load_command_config_accepts_policy_enforcement_fields(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                "fail_on_policy_violation = true",
+                'policy_fail_level = "high"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    values, _ = load_command_config("pack", root=tmp_path, config_path=config_path)
+    assert values["fail_on_policy_violation"] is True
+    assert values["policy_fail_level"] == "high"
+
+
+def test_load_command_config_rejects_invalid_policy_fail_level(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'policy_fail_level = "blocker"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigLoadError) as exc:
+        load_command_config("pack", root=tmp_path, config_path=config_path)
+
+    assert "policy_fail_level: expected one of 'critical, high, low, medium'" in str(exc.value)
+
+
+def test_load_command_config_rejects_non_bool_fail_on_policy_violation(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'fail_on_policy_violation = "yes"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigLoadError) as exc:
+        load_command_config("pack", root=tmp_path, config_path=config_path)
+
+    assert "fail_on_policy_violation: expected a boolean" in str(exc.value)
+
+
 def test_load_command_config_rejects_policy_rule_without_matchers(tmp_path: Path) -> None:
     config_path = tmp_path / "foldermix.toml"
     config_path.write_text(

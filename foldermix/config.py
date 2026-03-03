@@ -144,3 +144,5 @@ class PackConfig:
     pdf_ocr_strict: bool = False
     policy_pack: str | None = None
     policy_rules: list[dict[str, object]] = field(default_factory=list)
+    fail_on_policy_violation: bool = False
+    policy_fail_level: Literal["low", "medium", "high", "critical"] = "low"

@@ -54,6 +54,15 @@ def test_pack_rejects_invalid_redact(tmp_path: Path) -> None:
     assert "--help" in result.output
 
 
+def test_pack_rejects_invalid_policy_fail_level(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["pack", str(tmp_path), "--policy-fail-level", "blocker"])
+    assert result.exit_code == 1
+    assert "Invalid --policy-fail-level" in result.output
+    assert "low, medium, high" in result.output
+    assert "critical" in result.output
+    assert "--help" in result.output
+
+
 def test_pack_builds_config_and_calls_packer(monkeypatch, tmp_path: Path) -> None:
     captured = {}
 
@@ -83,6 +92,9 @@ def test_pack_builds_config_and_calls_packer(monkeypatch, tmp_path: Path) -> Non
             "--no-include-toc",
             "--pdf-ocr",
             "--pdf-ocr-strict",
+            "--fail-on-policy-violation",
+            "--policy-fail-level",
+            "high",
         ],
     )
 
@@ -99,6 +111,8 @@ def test_pack_builds_config_and_calls_packer(monkeypatch, tmp_path: Path) -> Non
     assert config.include_toc is False
     assert config.pdf_ocr is True
     assert config.pdf_ocr_strict is True
+    assert config.fail_on_policy_violation is True
+    assert config.policy_fail_level == "high"
 
 
 def test_pack_loads_values_from_config_file(monkeypatch, tmp_path: Path) -> None:
@@ -119,6 +133,8 @@ def test_pack_loads_values_from_config_file(monkeypatch, tmp_path: Path) -> None
                 "include_sha256 = false",
                 "pdf_ocr = true",
                 'policy_pack = "legal-hold"',
+                "fail_on_policy_violation = true",
+                'policy_fail_level = "critical"',
                 "",
                 "[[pack.policy_rules]]",
                 'rule_id = "scan-large"',
@@ -140,6 +156,8 @@ def test_pack_loads_values_from_config_file(monkeypatch, tmp_path: Path) -> None
     assert config.include_sha256 is False
     assert config.pdf_ocr is True
     assert config.policy_pack == "legal-hold"
+    assert config.fail_on_policy_violation is True
+    assert config.policy_fail_level == "critical"
     assert config.policy_rules == [
         {
             "rule_id": "scan-large",
@@ -166,6 +184,8 @@ def test_pack_cli_flags_override_config_values(monkeypatch, tmp_path: Path) -> N
                 'format = "xml"',
                 "include_toc = false",
                 'policy_pack = "legal-hold"',
+                "fail_on_policy_violation = false",
+                'policy_fail_level = "critical"',
                 "",
             ]
         ),
@@ -184,6 +204,9 @@ def test_pack_cli_flags_override_config_values(monkeypatch, tmp_path: Path) -> N
             "--include-toc",
             "--policy-pack",
             "strict-privacy",
+            "--fail-on-policy-violation",
+            "--policy-fail-level",
+            "high",
         ],
     )
 
@@ -192,6 +215,8 @@ def test_pack_cli_flags_override_config_values(monkeypatch, tmp_path: Path) -> N
     assert config.format == "jsonl"
     assert config.include_toc is True
     assert config.policy_pack == "strict-privacy"
+    assert config.fail_on_policy_violation is True
+    assert config.policy_fail_level == "high"
 
 
 def test_pack_reports_invalid_config(tmp_path: Path) -> None:
@@ -300,6 +325,10 @@ def test_pack_print_effective_config_outputs_sources_and_exits(monkeypatch, tmp_
     assert effective["pdf_ocr"]["source"] == "default"
     assert effective["pdf_ocr_strict"]["value"] is False
     assert effective["pdf_ocr_strict"]["source"] == "default"
+    assert effective["fail_on_policy_violation"]["value"] is False
+    assert effective["fail_on_policy_violation"]["source"] == "default"
+    assert effective["policy_fail_level"]["value"] == "low"
+    assert effective["policy_fail_level"]["source"] == "default"
 
 
 def test_pack_print_effective_config_includes_pack_defaults(monkeypatch, tmp_path: Path) -> None:
@@ -537,6 +566,7 @@ def test_pack_help_all_options_documented(tmp_path: Path) -> None:
     assert "table of" in output  # --include-toc
     assert "--stdin" in output
     assert "--null" in output
+    assert "--policy-fail-level" in output
 
 
 def test_list_help_all_options_documented() -> None:

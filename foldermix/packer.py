@@ -35,6 +35,39 @@ from .writers.markdown_writer import MarkdownWriter
 from .writers.xml_writer import XmlWriter
 
 console = Console(stderr=True)
+_POLICY_SEVERITY_ORDER: tuple[str, ...] = ("low", "medium", "high", "critical")
+_POLICY_SEVERITY_RANK = {severity: idx for idx, severity in enumerate(_POLICY_SEVERITY_ORDER)}
+
+
+def _count_failing_policy_findings(
+    policy_findings: list[dict[str, object]], *, min_severity: str
+) -> int:
+    threshold_rank = _POLICY_SEVERITY_RANK[min_severity]
+    failing_count = 0
+    for finding in policy_findings:
+        severity = finding.get("severity")
+        if not isinstance(severity, str):
+            continue
+        severity_rank = _POLICY_SEVERITY_RANK.get(severity)
+        if severity_rank is None:
+            continue
+        if severity_rank >= threshold_rank:
+            failing_count += 1
+    return failing_count
+
+
+def _deny_policy_findings(policy_findings: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [
+        finding
+        for finding in policy_findings
+        if isinstance(finding.get("action"), str) and finding.get("action") == "deny"
+    ]
+
+
+def _format_policy_severity_summary(by_severity: dict[str, int]) -> str:
+    ordered_keys = [key for key in _POLICY_SEVERITY_ORDER if key in by_severity]
+    ordered_keys.extend(sorted(key for key in by_severity if key not in _POLICY_SEVERITY_RANK))
+    return ", ".join(f"{severity}={by_severity[severity]}" for severity in ordered_keys)
 
 
 def _build_registry() -> ConverterRegistry:
@@ -299,12 +332,12 @@ def pack(config: PackConfig) -> None:
             )
         )
 
-    if policy_findings:
-        policy_counts = build_policy_finding_counts(
-            policy_findings=[asdict(finding) for finding in policy_findings]
-        )
+    policy_finding_entries = [asdict(finding) for finding in policy_findings]
+    policy_counts: dict[str, object] | None = None
+    if policy_finding_entries:
+        policy_counts = build_policy_finding_counts(policy_findings=policy_finding_entries)
         by_severity = cast(dict[str, int], policy_counts["by_severity"])
-        severity_summary = ", ".join(f"{sev}={count}" for sev, count in by_severity.items())
+        severity_summary = _format_policy_severity_summary(by_severity)
         suffix = f" ({severity_summary})" if severity_summary else ""
         console.print(f"[yellow]Policy findings:[/yellow] {policy_counts['total']}{suffix}")
 
@@ -340,7 +373,6 @@ def pack(config: PackConfig) -> None:
     console.print(f"[green]Done![/green] {len(items)} files, {total_bytes:,} bytes -> {out_path}")
 
     if config.report:
-        policy_finding_entries = [asdict(finding) for finding in policy_findings]
         included_files = [
             build_included_file_entry(
                 path=item.relpath,
@@ -364,9 +396,25 @@ def pack(config: PackConfig) -> None:
             reason_code_counts=build_reason_code_counts(
                 included_files=included_files, skipped_files=skipped_files
             ),
-            policy_finding_counts=build_policy_finding_counts(
-                policy_findings=policy_finding_entries
+            policy_finding_counts=(
+                policy_counts
+                if policy_counts is not None
+                else build_policy_finding_counts(policy_findings=policy_finding_entries)
             ),
         )
         write_report(config.report, report_data)
         console.print(f"Report written to {config.report}")
+
+    if config.fail_on_policy_violation and policy_finding_entries:
+        deny_policy_findings = _deny_policy_findings(policy_finding_entries)
+        failing_count = _count_failing_policy_findings(
+            deny_policy_findings,
+            min_severity=config.policy_fail_level,
+        )
+        if failing_count > 0:
+            console.print(
+                "[red]Policy enforcement failed:[/red] "
+                f"{failing_count} deny finding(s) at or above "
+                f"--policy-fail-level={config.policy_fail_level!r}"
+            )
+            raise typer.Exit(code=4)

@@ -64,6 +64,8 @@ _PACK_PARAM_BY_KEY = {
     "pdf_ocr_strict": "pdf_ocr_strict",
     "policy_pack": "policy_pack",
     "policy_rules": "policy_rules",
+    "fail_on_policy_violation": "fail_on_policy_violation",
+    "policy_fail_level": "policy_fail_level",
 }
 
 _LIST_PARAM_BY_KEY = {
@@ -235,6 +237,16 @@ def pack_cmd(
         "--policy-pack",
         help="Apply a built-in policy pack (strict-privacy, legal-hold, customer-support)",
     ),
+    fail_on_policy_violation: bool = typer.Option(
+        False,
+        "--fail-on-policy-violation/--no-fail-on-policy-violation",
+        help="Exit non-zero when policy findings meet or exceed --policy-fail-level [default: disabled]",
+    ),
+    policy_fail_level: str = typer.Option(
+        "low",
+        "--policy-fail-level",
+        help="Minimum severity that triggers failure when --fail-on-policy-violation is enabled: low, medium, high, critical [default: low]",
+    ),
     stdin: bool = typer.Option(
         False,
         "--stdin",
@@ -312,6 +324,8 @@ def pack_cmd(
         "pdf_ocr_strict": pdf_ocr_strict,
         "policy_pack": policy_pack,
         "policy_rules": [],
+        "fail_on_policy_violation": fail_on_policy_violation,
+        "policy_fail_level": policy_fail_level,
     }
 
     try:
@@ -352,6 +366,14 @@ def pack_cmd(
         console.print(
             "[red]Invalid --redact:"
             f" {values['redact']!r}. Valid choices are: none, emails, phones, all.[/red]\n"
+            "Run 'foldermix pack --help' for full usage information."
+        )
+        raise typer.Exit(code=1)
+
+    if values["policy_fail_level"] not in ("low", "medium", "high", "critical"):
+        console.print(
+            "[red]Invalid --policy-fail-level:"
+            f" {values['policy_fail_level']!r}. Valid choices are: low, medium, high, critical.[/red]\n"
             "Run 'foldermix pack --help' for full usage information."
         )
         raise typer.Exit(code=1)
