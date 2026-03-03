@@ -10,6 +10,7 @@ from foldermix.report import (
     ReportData,
     build_included_file_entry,
     build_policy_finding_counts,
+    build_reason_code_counts,
     build_skipped_file_entry,
     build_warning_code_counts,
     write_report,
@@ -82,6 +83,30 @@ def test_build_included_file_entry_deduplicates_outcome_codes() -> None:
     assert entry["outcomes"][0]["warning_code"] == "unclassified_warning"
 
 
+def test_build_included_file_entry_filters_invalid_warning_entries() -> None:
+    entry = build_included_file_entry(
+        path="a.txt",
+        size=3,
+        ext=".txt",
+        truncated=False,
+        redacted=False,
+        warning_entries=[
+            {"code": "", "message": "skip-empty-code"},
+            {"code": "encoding_fallback", "message": 1},  # type: ignore[dict-item]
+            {"code": "encoding_fallback", "message": "valid"},
+        ],
+        redact_mode="none",
+    )
+    assert entry["warning_codes"] == ["encoding_fallback"]
+    assert entry["outcomes"] == [
+        {
+            "code": "OUTCOME_CONVERSION_WARNING",
+            "warning_code": "encoding_fallback",
+            "message": "valid",
+        }
+    ]
+
+
 def test_build_warning_code_counts_groups_warning_codes() -> None:
     counts = build_warning_code_counts(
         included_files=[
@@ -102,6 +127,35 @@ def test_build_warning_code_counts_groups_warning_codes() -> None:
         ]
     )
     assert counts == {"encoding_fallback": 1, "ocr_no_text": 1}
+
+
+def test_build_warning_code_counts_ignores_non_dict_outcomes_and_uses_fallback_codes() -> None:
+    counts = build_warning_code_counts(
+        included_files=[
+            {
+                "warning_codes": ["converter_unavailable"],
+                "outcomes": [1],
+            }
+        ]
+    )
+    assert counts == {"converter_unavailable": 1}
+
+
+def test_build_reason_code_counts_ignores_non_dict_outcomes_and_uses_fallback_codes() -> None:
+    counts = build_reason_code_counts(
+        included_files=[
+            {
+                "outcome_codes": ["OUTCOME_CONVERSION_WARNING"],
+                "warning_codes": ["ocr_disabled"],
+                "outcomes": [1],
+            }
+        ],
+        skipped_files=[],
+    )
+    assert counts == {
+        "OUTCOME_CONVERSION_WARNING": 1,
+        "ocr_disabled": 1,
+    }
 
 
 def test_write_report_backfills_unknown_reason_code_for_non_string_reason(tmp_path: Path) -> None:
@@ -212,3 +266,19 @@ def test_write_report_backfills_policy_finding_counts_when_missing(tmp_path: Pat
         "by_reason_code": {"POLICY_RULE_MATCH": 1},
     }
     assert payload["warning_code_counts"] == {}
+
+
+def test_write_report_preserves_precomputed_warning_code_counts(tmp_path: Path) -> None:
+    report_path = tmp_path / "report.json"
+    data = ReportData(
+        included_count=0,
+        skipped_count=0,
+        total_bytes=0,
+        included_files=[],
+        skipped_files=[],
+        warning_code_counts={"already_set": 2},
+    )
+
+    write_report(report_path, data)
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert payload["warning_code_counts"] == {"already_set": 2}
