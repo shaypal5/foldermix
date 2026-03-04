@@ -28,6 +28,9 @@ class FileBundleItem:
     warning_entries: list[dict[str, object]] = field(default_factory=list)
     truncated: bool = False
     redacted: bool = False
+    redaction_mode: str = "none"
+    redaction_event_count: int = 0
+    redaction_categories: list[str] = field(default_factory=list)
 
 
 class Writer:

@@ -24,6 +24,7 @@ from .report import (
     build_included_file_entry,
     build_policy_finding_counts,
     build_reason_code_counts,
+    build_redaction_summary,
     build_skipped_file_entry,
     write_report,
 )
@@ -112,6 +113,8 @@ def _convert_record(
             warnings.append(message)
     truncated = False
     redacted = False
+    redaction_event_count = 0
+    redaction_categories: list[str] = []
 
     if converter is None:
         content = f"[No converter available for {record.ext}]"
@@ -161,10 +164,14 @@ def _convert_record(
                 content = strip_yaml_frontmatter(content)
 
             if config.redact != "none":
-                from .utils import apply_redaction
+                from .utils import apply_redaction_with_trace
 
-                redacted_content = apply_redaction(content, config.redact)
-                redacted = redacted_content != content
+                redacted_content, category_counts = apply_redaction_with_trace(
+                    content, config.redact
+                )
+                redaction_event_count = sum(category_counts.values())
+                redaction_categories = sorted(category_counts)
+                redacted = redaction_event_count > 0
                 content = redacted_content
 
             if config.line_ending == "crlf":
@@ -199,6 +206,9 @@ def _convert_record(
         warning_entries=normalize_warning_entries(warnings),
         truncated=truncated,
         redacted=redacted,
+        redaction_mode=config.redact,
+        redaction_event_count=redaction_event_count,
+        redaction_categories=redaction_categories,
     )
 
 
@@ -382,6 +392,8 @@ def pack(config: PackConfig) -> None:
                 ext=item.ext,
                 truncated=item.truncated,
                 redacted=item.redacted,
+                redaction_event_count=item.redaction_event_count,
+                redaction_categories=item.redaction_categories,
                 warning_entries=item.warning_entries,
                 redact_mode=config.redact,
             )
@@ -397,6 +409,10 @@ def pack(config: PackConfig) -> None:
             policy_findings=policy_finding_entries,
             reason_code_counts=build_reason_code_counts(
                 included_files=included_files, skipped_files=skipped_files
+            ),
+            redaction_summary=build_redaction_summary(
+                included_files=included_files,
+                default_mode=config.redact,
             ),
             policy_finding_counts=(
                 policy_counts

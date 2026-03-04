@@ -11,6 +11,7 @@ from foldermix.report import (
     build_included_file_entry,
     build_policy_finding_counts,
     build_reason_code_counts,
+    build_redaction_summary,
     build_skipped_file_entry,
     build_warning_code_counts,
     write_report,
@@ -81,6 +82,7 @@ def test_build_included_file_entry_deduplicates_outcome_codes() -> None:
     assert entry["warning_codes"] == ["unclassified_warning"]
     assert len(entry["outcomes"]) == 2
     assert entry["outcomes"][0]["warning_code"] == "unclassified_warning"
+    assert entry["redaction"] == {"mode": "none", "event_count": 0, "categories": []}
 
 
 def test_build_included_file_entry_backfills_invalid_warning_entries() -> None:
@@ -191,6 +193,63 @@ def test_build_warning_code_counts_ignores_non_dict_outcomes_and_uses_fallback_c
     assert counts == {"converter_unavailable": 1}
 
 
+def test_build_redaction_summary_aggregates_mode_events_and_categories() -> None:
+    summary = build_redaction_summary(
+        included_files=[
+            {
+                "path": "a.txt",
+                "redaction": {
+                    "mode": "all",
+                    "event_count": 2,
+                    "categories": ["emails"],
+                },
+            },
+            {
+                "path": "b.txt",
+                "redaction": {
+                    "mode": "all",
+                    "event_count": 1,
+                    "categories": ["phones"],
+                },
+            },
+            {
+                "path": "c.txt",
+                "redaction": {
+                    "mode": "all",
+                    "event_count": 0,
+                    "categories": [],
+                },
+            },
+        ]
+    )
+    assert summary == {
+        "mode": "all",
+        "files_with_redactions": 2,
+        "event_count": 3,
+        "categories": ["emails", "phones"],
+    }
+
+
+def test_build_redaction_summary_returns_mixed_mode_for_inconsistent_entries() -> None:
+    summary = build_redaction_summary(
+        included_files=[
+            {"redaction": {"mode": "emails", "event_count": 1, "categories": ["emails"]}},
+            {"redaction": {"mode": "phones", "event_count": 1, "categories": ["phones"]}},
+        ]
+    )
+    assert summary["mode"] == "mixed"
+
+
+def test_build_redaction_summary_uses_default_mode_when_no_files() -> None:
+    summary = build_redaction_summary(included_files=[], default_mode="emails")
+    assert summary == {
+        "mode": "emails",
+        "files_with_redactions": 0,
+        "event_count": 0,
+        "categories": [],
+    }
+
+
 def test_build_reason_code_counts_ignores_non_dict_outcomes_and_uses_fallback_codes() -> None:
     counts = build_reason_code_counts(
         included_files=[
@@ -222,6 +281,46 @@ def test_write_report_backfills_unknown_reason_code_for_non_string_reason(tmp_pa
     payload = json.loads(report_path.read_text(encoding="utf-8"))
 
     assert payload["reason_code_counts"] == {"SKIP_UNKNOWN": 1}
+
+
+def test_write_report_backfills_redaction_summary_when_missing(tmp_path: Path) -> None:
+    report_path = tmp_path / "report.json"
+    data = ReportData(
+        included_count=1,
+        skipped_count=0,
+        total_bytes=3,
+        included_files=[
+            {
+                "path": "a.txt",
+                "size": 3,
+                "ext": ".txt",
+                "outcome_codes": ["OUTCOME_REDACTED"],
+                "warning_codes": [],
+                "outcomes": [
+                    {
+                        "code": "OUTCOME_REDACTED",
+                        "message": "Content was redacted using mode 'all'.",
+                    }
+                ],
+                "redaction": {
+                    "mode": "all",
+                    "event_count": 2,
+                    "categories": ["emails"],
+                },
+            }
+        ],
+        skipped_files=[],
+    )
+
+    write_report(report_path, data)
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+
+    assert payload["redaction_summary"] == {
+        "mode": "all",
+        "files_with_redactions": 1,
+        "event_count": 2,
+        "categories": ["emails"],
+    }
 
 
 def test_build_policy_finding_counts_groups_by_key_dimensions() -> None:

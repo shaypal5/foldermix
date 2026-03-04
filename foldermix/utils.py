@@ -5,6 +5,9 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+_EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b")
+_PHONE_PATTERN = re.compile(r"\b(\+?1?\s*[-.]?\s*\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4})\b")
+
 
 def sha256_file(path: Path) -> str:
     """Compute SHA-256 of a file."""
@@ -61,19 +64,21 @@ def read_text_with_fallback(path: Path, encoding: str = "utf-8") -> tuple[str, s
 
 
 def apply_redaction(text: str, mode: str) -> str:
+    redacted_text, _ = apply_redaction_with_trace(text, mode)
+    return redacted_text
+
+
+def apply_redaction_with_trace(text: str, mode: str) -> tuple[str, dict[str, int]]:
+    category_counts: dict[str, int] = {}
     if mode in ("emails", "all"):
-        text = re.sub(
-            r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b",
-            "[REDACTED_EMAIL]",
-            text,
-        )
+        text, email_count = _EMAIL_PATTERN.subn("[REDACTED_EMAIL]", text)
+        if email_count > 0:
+            category_counts["emails"] = email_count
     if mode in ("phones", "all"):
-        text = re.sub(
-            r"\b(\+?1?\s*[-.]?\s*\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4})\b",
-            "[REDACTED_PHONE]",
-            text,
-        )
-    return text
+        text, phone_count = _PHONE_PATTERN.subn("[REDACTED_PHONE]", text)
+        if phone_count > 0:
+            category_counts["phones"] = phone_count
+    return text, category_counts
 
 
 def strip_yaml_frontmatter(text: str) -> str:

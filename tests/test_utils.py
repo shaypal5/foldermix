@@ -107,6 +107,20 @@ def test_apply_redaction_modes() -> None:
     assert utils.apply_redaction(text, "none") == text
 
 
+def test_apply_redaction_with_trace_counts_by_category() -> None:
+    text = "a@example.com and b@example.com and +1 (555) 123-4567"
+    redacted, counts = utils.apply_redaction_with_trace(text, "all")
+    assert redacted.count("[REDACTED_EMAIL]") == 2
+    assert redacted.count("[REDACTED_PHONE]") == 1
+    assert counts == {"emails": 2, "phones": 1}
+
+
+def test_apply_redaction_with_trace_returns_empty_counts_when_no_match() -> None:
+    redacted, counts = utils.apply_redaction_with_trace("no sensitive tokens", "all")
+    assert redacted == "no sensitive tokens"
+    assert counts == {}
+
+
 def test_strip_yaml_frontmatter_only_at_start() -> None:
     text = "---\ntitle: test\n---\nbody\n"
     assert utils.strip_yaml_frontmatter(text) == "body\n"

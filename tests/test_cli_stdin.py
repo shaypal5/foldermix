@@ -47,7 +47,7 @@ def test_pack_stdin_newline_ingests_explicit_paths_and_reports_missing(
     assert _jsonl_relpaths(tmp_path / "out.jsonl") == ["a.txt", "sub dir/b.txt"]
 
     report = json.loads((tmp_path / "report.json").read_text(encoding="utf-8"))
-    assert report["schema_version"] == 4
+    assert report["schema_version"] == 5
     missing = next(entry for entry in report["skipped_files"] if entry["path"] == "missing.txt")
     assert missing["reason"] == "missing"
     assert missing["reason_code"] == "SKIP_MISSING"

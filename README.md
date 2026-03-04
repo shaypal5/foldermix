@@ -207,17 +207,17 @@ foldermix version
 
 `--report` writes a versioned schema with machine-actionable reason codes and policy findings while preserving existing human-readable fields.
 
-- Current schema: `schema_version = 4`
+- Current schema: `schema_version = 5`
 - Compatibility policy:
   - Existing keys are preserved (`included_count`, `skipped_count`, `total_bytes`, `included_files`, `skipped_files`).
-  - New top-level fields are additive (`schema_version`, `reason_code_counts`, `warning_code_counts`, `policy_findings`, `policy_finding_counts`).
-  - New per-entry fields are additive (`reason_code`, `message`, `outcome_codes`, `warning_codes`, `outcomes`).
+  - New top-level fields are additive (`schema_version`, `reason_code_counts`, `warning_code_counts`, `redaction_summary`, `policy_findings`, `policy_finding_counts`).
+  - New per-entry fields are additive (`reason_code`, `message`, `outcome_codes`, `warning_codes`, `outcomes`, `redaction`).
 
 Example `report.json` shape:
 
 ```json
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "included_count": 2,
   "skipped_count": 1,
   "total_bytes": 1234,
@@ -231,7 +231,12 @@ Example `report.json` shape:
       "outcomes": [
         {"code": "OUTCOME_TRUNCATED", "message": "File content was truncated to satisfy --max-bytes."},
         {"code": "OUTCOME_REDACTED", "message": "Content was redacted using mode 'emails'."}
-      ]
+      ],
+      "redaction": {
+        "mode": "emails",
+        "event_count": 2,
+        "categories": ["emails"]
+      }
     }
   ],
   "skipped_files": [
@@ -248,6 +253,12 @@ Example `report.json` shape:
     "SKIP_EXCLUDED_EXT": 1
   },
   "warning_code_counts": {},
+  "redaction_summary": {
+    "mode": "emails",
+    "files_with_redactions": 1,
+    "event_count": 2,
+    "categories": ["emails"]
+  },
   "policy_findings": [
     {
       "rule_id": "convert-secret",
@@ -275,6 +286,18 @@ Canonical reason-code groups:
 - Warning taxonomy codes:
   `encoding_fallback`, `converter_unavailable`, `ocr_disabled`, `ocr_dependencies_missing`, `ocr_initialization_failed`, `ocr_failed`, `ocr_no_text`, `unclassified_warning`
 - Policy finding reason codes: `POLICY_RULE_MATCH`, `POLICY_SKIP_REASON_MATCH`, `POLICY_CONTENT_REGEX_MATCH`, `POLICY_FILE_SIZE_EXCEEDED`, `POLICY_TOTAL_BYTES_EXCEEDED`, `POLICY_FILE_COUNT_EXCEEDED`
+
+Redaction traceability semantics:
+
+- Per file (`included_files[].redaction`):
+  - `mode`: configured redaction mode for the run (`none`, `emails`, `phones`, `all`)
+  - `event_count`: number of replacements applied for that file
+  - `categories`: redaction categories that matched (`emails`, `phones`)
+- Run summary (`redaction_summary`):
+  - `mode`: run-level mode (or `mixed` if inconsistent input is provided)
+  - `files_with_redactions`: count of files where `event_count > 0`
+  - `event_count`: total replacements across all included files
+  - `categories`: union of categories matched across included files
 
 ## Policy Engine Core
 

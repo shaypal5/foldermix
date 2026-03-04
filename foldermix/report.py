@@ -10,7 +10,7 @@ from .warning_taxonomy import (
     normalize_warning_entries,
 )
 
-REPORT_SCHEMA_VERSION = 4
+REPORT_SCHEMA_VERSION = 5
 
 
 @dataclass(frozen=True)
@@ -88,6 +88,7 @@ class ReportData:
     schema_version: int = REPORT_SCHEMA_VERSION
     reason_code_counts: dict[str, int] = field(default_factory=dict)
     warning_code_counts: dict[str, int] = field(default_factory=dict)
+    redaction_summary: dict[str, object] = field(default_factory=dict)
     policy_finding_counts: dict[str, object] = field(default_factory=dict)
 
 
@@ -121,9 +122,11 @@ def build_included_file_entry(
     ext: str,
     truncated: bool,
     redacted: bool,
+    redaction_event_count: int = 0,
+    redaction_categories: Iterable[str] | None = None,
     warning_entries: Iterable[dict[str, object]] | None = None,
     warning_messages: Iterable[str] | None = None,
-    redact_mode: str,
+    redact_mode: str = "none",
 ) -> dict:
     normalized_warning_entries: list[dict[str, str]]
     if warning_entries is not None:
@@ -156,6 +159,13 @@ def build_included_file_entry(
         )
     outcome_codes = list(dict.fromkeys(outcome["code"] for outcome in outcomes))
     warning_codes = list(dict.fromkeys(warning["code"] for warning in normalized_warning_entries))
+    normalized_redaction_categories = sorted(
+        {
+            category.strip()
+            for category in (redaction_categories or [])
+            if isinstance(category, str) and category.strip()
+        }
+    )
 
     return {
         "path": path,
@@ -164,6 +174,11 @@ def build_included_file_entry(
         "outcome_codes": outcome_codes,
         "warning_codes": warning_codes,
         "outcomes": outcomes,
+        "redaction": {
+            "mode": redact_mode,
+            "event_count": redaction_event_count,
+            "categories": normalized_redaction_categories,
+        },
     }
 
 
@@ -199,6 +214,51 @@ def build_warning_code_counts(*, included_files: list[dict]) -> dict[str, int]:
         for warning_code in _iter_warning_codes(entry):
             counts[warning_code] = counts.get(warning_code, 0) + 1
     return dict(sorted(counts.items()))
+
+
+def build_redaction_summary(
+    *,
+    included_files: list[dict],
+    default_mode: str = "none",
+) -> dict[str, object]:
+    categories: set[str] = set()
+    files_with_redactions = 0
+    total_event_count = 0
+    mode_counts: dict[str, int] = {}
+
+    for entry in included_files:
+        redaction = entry.get("redaction")
+        if isinstance(redaction, dict):
+            mode = redaction.get("mode")
+            if isinstance(mode, str):
+                mode_counts[mode] = mode_counts.get(mode, 0) + 1
+
+            event_count = redaction.get("event_count")
+            if isinstance(event_count, int):
+                total_event_count += event_count
+                if event_count > 0:
+                    files_with_redactions += 1
+
+            raw_categories = redaction.get("categories", [])
+            if isinstance(raw_categories, list):
+                for category in raw_categories:
+                    if isinstance(category, str):
+                        categories.add(category)
+
+    mode: str
+    if len(mode_counts) == 1:
+        mode = next(iter(mode_counts))
+    elif len(mode_counts) > 1:
+        mode = "mixed"
+    else:
+        mode = default_mode
+
+    return {
+        "mode": mode,
+        "files_with_redactions": files_with_redactions,
+        "event_count": total_event_count,
+        "categories": sorted(categories),
+    }
 
 
 def _normalize_warning_entries_from_entries(
@@ -272,6 +332,10 @@ def write_report(report_path: Path, data: ReportData) -> None:
         )
     if not payload["warning_code_counts"]:
         payload["warning_code_counts"] = build_warning_code_counts(
+            included_files=payload["included_files"],
+        )
+    if not payload["redaction_summary"]:
+        payload["redaction_summary"] = build_redaction_summary(
             included_files=payload["included_files"],
         )
     if payload["policy_findings"] and not payload["policy_finding_counts"]:

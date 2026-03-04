@@ -158,7 +158,7 @@ def test_pack_writes_report_json(tmp_path: Path) -> None:
     packer.pack(config)
 
     report = json.loads(report_path.read_text(encoding="utf-8"))
-    assert report["schema_version"] == 4
+    assert report["schema_version"] == 5
     assert report["included_count"] == 1
     assert report["skipped_count"] == 1
     assert report["included_files"] == [
@@ -169,6 +169,11 @@ def test_pack_writes_report_json(tmp_path: Path) -> None:
             "outcome_codes": [],
             "warning_codes": [],
             "outcomes": [],
+            "redaction": {
+                "mode": "none",
+                "event_count": 0,
+                "categories": [],
+            },
         }
     ]
     assert report["skipped_files"] == [
@@ -181,10 +186,17 @@ def test_pack_writes_report_json(tmp_path: Path) -> None:
     ]
     assert report["reason_code_counts"] == {"SKIP_EXCLUDED_EXT": 1}
     assert report["warning_code_counts"] == {}
+    assert report["redaction_summary"] == {
+        "mode": "none",
+        "files_with_redactions": 0,
+        "event_count": 0,
+        "categories": [],
+    }
 
 
 def test_pack_report_includes_structured_outcomes(tmp_path: Path) -> None:
-    (tmp_path / "big.txt").write_text("Contact foo@example.com.\n" * 32, encoding="utf-8")
+    # Write bytes directly so truncation/redaction counts are stable on LF/CRLF platforms.
+    (tmp_path / "big.txt").write_bytes(b"Contact foo@example.com.\n" * 32)
     (tmp_path / "latin1.txt").write_bytes("café\n".encode("latin-1"))
     out_path = tmp_path / "out.jsonl"
     report_path = tmp_path / "report.json"
@@ -209,6 +221,16 @@ def test_pack_report_includes_structured_outcomes(tmp_path: Path) -> None:
     assert "OUTCOME_TRUNCATED" in by_path["big.txt"]["outcome_codes"]
     assert "OUTCOME_REDACTED" in by_path["big.txt"]["outcome_codes"]
     assert "OUTCOME_CONVERSION_WARNING" in by_path["latin1.txt"]["outcome_codes"]
+    assert by_path["big.txt"]["redaction"] == {
+        "mode": "emails",
+        "event_count": 3,
+        "categories": ["emails"],
+    }
+    assert by_path["latin1.txt"]["redaction"] == {
+        "mode": "emails",
+        "event_count": 0,
+        "categories": [],
+    }
 
     warning_outcomes = [
         outcome
@@ -224,6 +246,12 @@ def test_pack_report_includes_structured_outcomes(tmp_path: Path) -> None:
     assert report["reason_code_counts"]["OUTCOME_CONVERSION_WARNING"] == 1
     assert report["reason_code_counts"]["encoding_fallback"] == 1
     assert report["warning_code_counts"] == {"encoding_fallback": 1}
+    assert report["redaction_summary"] == {
+        "mode": "emails",
+        "files_with_redactions": 1,
+        "event_count": 3,
+        "categories": ["emails"],
+    }
 
 
 def test_pack_report_includes_policy_findings(tmp_path: Path) -> None:
@@ -268,7 +296,7 @@ def test_pack_report_includes_policy_findings(tmp_path: Path) -> None:
     packer.pack(config)
 
     report = json.loads(report_path.read_text(encoding="utf-8"))
-    assert report["schema_version"] == 4
+    assert report["schema_version"] == 5
     assert len(report["policy_findings"]) == 3
     assert report["policy_finding_counts"] == {
         "total": 3,
@@ -279,6 +307,38 @@ def test_pack_report_includes_policy_findings(tmp_path: Path) -> None:
             "POLICY_FILE_SIZE_EXCEEDED": 1,
             "POLICY_TOTAL_BYTES_EXCEEDED": 1,
         },
+    }
+
+
+def test_pack_report_redaction_metadata_never_leaks_sensitive_literals(tmp_path: Path) -> None:
+    secret_email = "alice.secret@example.com"
+    secret_phone = "+1 (555) 123-4567"
+    (tmp_path / "data.txt").write_text(
+        f"owner={secret_email}\nphone={secret_phone}\n",
+        encoding="utf-8",
+    )
+    out_path = tmp_path / "out.md"
+    report_path = tmp_path / "report.json"
+    config = PackConfig(
+        root=tmp_path,
+        out=out_path,
+        report=report_path,
+        redact="all",
+        workers=1,
+        include_sha256=False,
+    )
+
+    packer.pack(config)
+
+    report_text = report_path.read_text(encoding="utf-8")
+    report = json.loads(report_text)
+    assert secret_email not in report_text
+    assert secret_phone not in report_text
+    assert report["redaction_summary"] == {
+        "mode": "all",
+        "files_with_redactions": 1,
+        "event_count": 2,
+        "categories": ["emails", "phones"],
     }
 
 
