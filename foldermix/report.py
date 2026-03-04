@@ -121,7 +121,7 @@ def build_included_file_entry(
     ext: str,
     truncated: bool,
     redacted: bool,
-    warning_entries: Iterable[dict[str, str]] | None = None,
+    warning_entries: Iterable[dict[str, object]] | None = None,
     warning_messages: Iterable[str] | None = None,
     redact_mode: str,
 ) -> dict:
@@ -202,14 +202,19 @@ def build_warning_code_counts(*, included_files: list[dict]) -> dict[str, int]:
 
 
 def _normalize_warning_entries_from_entries(
-    warning_entries: Iterable[dict[str, str]],
+    warning_entries: Iterable[dict[str, object]],
 ) -> list[dict[str, str]]:
     normalized_warning_entries: list[dict[str, str]] = []
     for warning in warning_entries:
         raw_code = warning.get("code")
         raw_message = warning.get("message")
 
-        message = raw_message if isinstance(raw_message, str) else str(raw_message)
+        if raw_message is None:
+            message = ""
+        elif isinstance(raw_message, str):
+            message = raw_message
+        else:
+            message = str(raw_message)
         if isinstance(raw_code, str) and raw_code.strip():
             code = raw_code.strip()
         else:

@@ -92,7 +92,7 @@ def test_build_included_file_entry_backfills_invalid_warning_entries() -> None:
         redacted=False,
         warning_entries=[
             {"code": "", "message": "skip-empty-code"},
-            {"code": "encoding_fallback", "message": 1},  # type: ignore[dict-item]
+            {"code": "encoding_fallback", "message": 1},
             {"code": "encoding_fallback", "message": "valid"},
         ],
         redact_mode="none",
@@ -114,6 +114,28 @@ def test_build_included_file_entry_backfills_invalid_warning_entries() -> None:
             "warning_code": "encoding_fallback",
             "message": "valid",
         },
+    ]
+
+
+def test_build_included_file_entry_normalizes_missing_warning_message_to_empty_string() -> None:
+    entry = build_included_file_entry(
+        path="a.txt",
+        size=3,
+        ext=".txt",
+        truncated=False,
+        redacted=False,
+        warning_entries=[
+            {"code": "", "message": None},
+        ],
+        redact_mode="none",
+    )
+    assert entry["warning_codes"] == ["unclassified_warning"]
+    assert entry["outcomes"] == [
+        {
+            "code": "OUTCOME_CONVERSION_WARNING",
+            "warning_code": "unclassified_warning",
+            "message": "",
+        }
     ]
 
 
