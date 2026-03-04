@@ -83,8 +83,9 @@ class MarkdownWriter(Writer):
                 out.write("- **⚠️ TRUNCATED**\n")
             if item.warning_entries:
                 for warning in item.warning_entries:
-                    code = warning.get("code", "unclassified_warning")
-                    message = warning.get("message", "")
+                    raw_code = warning.get("code", "")
+                    code = str(raw_code).strip() or "unclassified_warning"
+                    message = str(warning.get("message", ""))
                     out.write(f"- **⚠️ Warning [{code}]**: {message}\n")
             elif item.warnings:
                 for warning in item.warnings:
