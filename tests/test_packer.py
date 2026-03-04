@@ -724,6 +724,18 @@ def test_format_policy_severity_summary_orders_by_defined_severity() -> None:
     assert summary == "low=1, medium=4, critical=2, zzz=3"
 
 
+def test_build_policy_stage_counts_ignores_non_string_stage_values() -> None:
+    counts = packer._build_policy_stage_counts(
+        [
+            {"stage": "convert"},
+            {"stage": 1},
+            {},
+        ]
+    )
+
+    assert counts == {"convert": 1}
+
+
 def test_pack_keeps_deterministic_order_after_parallel_conversion(
     tmp_path: Path, monkeypatch
 ) -> None:
