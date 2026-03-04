@@ -216,7 +216,11 @@ def build_warning_code_counts(*, included_files: list[dict]) -> dict[str, int]:
     return dict(sorted(counts.items()))
 
 
-def build_redaction_summary(*, included_files: list[dict]) -> dict[str, object]:
+def build_redaction_summary(
+    *,
+    included_files: list[dict],
+    default_mode: str = "none",
+) -> dict[str, object]:
     categories: set[str] = set()
     files_with_redactions = 0
     total_event_count = 0
@@ -247,7 +251,7 @@ def build_redaction_summary(*, included_files: list[dict]) -> dict[str, object]:
     elif len(mode_counts) > 1:
         mode = "mixed"
     else:
-        mode = "none"
+        mode = default_mode
 
     return {
         "mode": mode,

@@ -410,7 +410,10 @@ def pack(config: PackConfig) -> None:
             reason_code_counts=build_reason_code_counts(
                 included_files=included_files, skipped_files=skipped_files
             ),
-            redaction_summary=build_redaction_summary(included_files=included_files),
+            redaction_summary=build_redaction_summary(
+                included_files=included_files,
+                default_mode=config.redact,
+            ),
             policy_finding_counts=(
                 policy_counts
                 if policy_counts is not None

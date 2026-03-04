@@ -240,6 +240,16 @@ def test_build_redaction_summary_returns_mixed_mode_for_inconsistent_entries() -
     assert summary["mode"] == "mixed"
 
 
+def test_build_redaction_summary_uses_default_mode_when_no_files() -> None:
+    summary = build_redaction_summary(included_files=[], default_mode="emails")
+    assert summary == {
+        "mode": "emails",
+        "files_with_redactions": 0,
+        "event_count": 0,
+        "categories": [],
+    }
+
+
 def test_build_reason_code_counts_ignores_non_dict_outcomes_and_uses_fallback_codes() -> None:
     counts = build_reason_code_counts(
         included_files=[
