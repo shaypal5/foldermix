@@ -6,7 +6,6 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from .warning_taxonomy import (
-    WARNING_CODE_UNCLASSIFIED,
     classify_warning_message,
     normalize_warning_entries,
 )
@@ -215,8 +214,6 @@ def _normalize_warning_entries_from_entries(
             code = raw_code.strip()
         else:
             code = classify_warning_message(message)
-            if not code:
-                code = WARNING_CODE_UNCLASSIFIED
 
         normalized_warning_entries.append({"code": code, "message": message})
     return normalized_warning_entries
