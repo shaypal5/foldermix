@@ -146,3 +146,5 @@ class PackConfig:
     policy_rules: list[dict[str, object]] = field(default_factory=list)
     fail_on_policy_violation: bool = False
     policy_fail_level: Literal["low", "medium", "high", "critical"] = "low"
+    policy_dry_run: bool = False
+    policy_output: Literal["text", "json"] = "text"

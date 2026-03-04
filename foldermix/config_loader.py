@@ -43,6 +43,8 @@ _COMMAND_KEYS: dict[str, set[str]] = {
         "policy_rules",
         "fail_on_policy_violation",
         "policy_fail_level",
+        "policy_dry_run",
+        "policy_output",
     },
     "list": {"include_ext", "exclude_ext", "hidden", "respect_gitignore"},
     "stats": {"include_ext", "hidden"},
@@ -56,6 +58,7 @@ _LITERALS: dict[str, set[str]] = {
     "redact": {"none", "emails", "phones", "all"},
     "line_ending": {"lf", "crlf"},
     "policy_fail_level": {"low", "medium", "high", "critical"},
+    "policy_output": {"text", "json"},
 }
 _INT_KEYS = {"max_bytes", "max_total_bytes", "max_files", "workers"}
 _BOOL_KEYS = {
@@ -71,6 +74,7 @@ _BOOL_KEYS = {
     "pdf_ocr",
     "pdf_ocr_strict",
     "fail_on_policy_violation",
+    "policy_dry_run",
 }
 _STR_KEYS = {"encoding"}
 _PATH_KEYS = {"out", "report"}

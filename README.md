@@ -172,6 +172,8 @@ Options:
   --pdf-ocr-strict / --no-pdf-ocr-strict  Fail when OCR is needed but unavailable/empty [default: disabled]
   --fail-on-policy-violation / --no-fail-on-policy-violation  Fail command when policy findings meet threshold [default: disabled]
   --policy-fail-level TEXT     Minimum severity for policy-failure threshold: low, medium, high, critical [default: low]
+  --policy-dry-run / --no-policy-dry-run  Evaluate policy outcomes without writing packed output [default: disabled]
+  --policy-output TEXT          Policy dry-run output format: text, json [default: text]
   --stdin                        Read explicit file paths from standard input instead of recursive scanning
   --null                         Parse stdin as NUL-delimited paths (for find -print0); requires --stdin
   --print-effective-config       Print merged effective config with value sources and exit
@@ -364,6 +366,33 @@ Semantics:
 - `--policy-fail-level` sets the minimum severity for those deny findings (`low`, `medium`, `high`, `critical`).
 - Findings are still reported in terminal summary and `--report` output before exiting.
 - Enforcement failures exit with code `4`.
+
+### Policy Dry-Run / Explain Mode
+
+Preview policy impact without writing a packed output bundle:
+
+```bash
+foldermix pack . \
+  --policy-pack strict-privacy \
+  --policy-dry-run
+```
+
+For machine-readable automation output:
+
+```bash
+foldermix pack . \
+  --policy-pack strict-privacy \
+  --policy-dry-run \
+  --policy-output json
+```
+
+Semantics:
+
+- `--policy-dry-run` executes scan/convert/pack policy evaluation but skips bundle write.
+- Text mode prints a deterministic summary and affected-file list.
+- `--policy-output json` emits a deterministic JSON payload to stdout for CI/automation.
+- `--policy-output` requires `--policy-dry-run`.
+- `--dry-run` and `--policy-dry-run` are mutually exclusive.
 
 ## Troubleshooting
 

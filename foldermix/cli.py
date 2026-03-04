@@ -66,6 +66,8 @@ _PACK_PARAM_BY_KEY = {
     "policy_rules": "policy_rules",
     "fail_on_policy_violation": "fail_on_policy_violation",
     "policy_fail_level": "policy_fail_level",
+    "policy_dry_run": "policy_dry_run",
+    "policy_output": "policy_output",
 }
 
 _LIST_PARAM_BY_KEY = {
@@ -247,6 +249,16 @@ def pack_cmd(
         "--policy-fail-level",
         help="Minimum severity that triggers failure when --fail-on-policy-violation is enabled: low, medium, high, critical [default: low]",
     ),
+    policy_dry_run: bool = typer.Option(
+        False,
+        "--policy-dry-run/--no-policy-dry-run",
+        help="Run policy evaluation preview (including conversion-stage checks) without writing the packed output file",
+    ),
+    policy_output: str = typer.Option(
+        "text",
+        "--policy-output",
+        help="Policy dry-run output format: text, json [default: text]",
+    ),
     stdin: bool = typer.Option(
         False,
         "--stdin",
@@ -326,6 +338,8 @@ def pack_cmd(
         "policy_rules": [],
         "fail_on_policy_violation": fail_on_policy_violation,
         "policy_fail_level": policy_fail_level,
+        "policy_dry_run": policy_dry_run,
+        "policy_output": policy_output,
     }
 
     try:
@@ -374,6 +388,28 @@ def pack_cmd(
         console.print(
             "[red]Invalid --policy-fail-level:"
             f" {values['policy_fail_level']!r}. Valid choices are: low, medium, high, critical.[/red]\n"
+            "Run 'foldermix pack --help' for full usage information."
+        )
+        raise typer.Exit(code=1)
+
+    if values["policy_output"] not in ("text", "json"):
+        console.print(
+            "[red]Invalid --policy-output:"
+            f" {values['policy_output']!r}. Valid choices are: text, json.[/red]\n"
+            "Run 'foldermix pack --help' for full usage information."
+        )
+        raise typer.Exit(code=1)
+
+    if values["policy_output"] != "text" and not values["policy_dry_run"]:
+        console.print(
+            "[red]--policy-output requires --policy-dry-run.[/red]\n"
+            "Run 'foldermix pack --help' for full usage information."
+        )
+        raise typer.Exit(code=1)
+
+    if values["dry_run"] and values["policy_dry_run"]:
+        console.print(
+            "[red]--dry-run cannot be combined with --policy-dry-run.[/red]\n"
             "Run 'foldermix pack --help' for full usage information."
         )
         raise typer.Exit(code=1)

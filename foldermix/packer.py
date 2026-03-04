@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from pathlib import Path
@@ -28,7 +29,7 @@ from .report import (
     build_skipped_file_entry,
     write_report,
 )
-from .scanner import FileRecord, scan
+from .scanner import FileRecord, SkipRecord, scan
 from .utils import mtime_iso, sha256_file, utcnow_iso
 from .warning_taxonomy import normalize_warning_entries
 from .writers.base import FileBundleItem, HeaderInfo
@@ -70,6 +71,176 @@ def _format_policy_severity_summary(by_severity: dict[str, int]) -> str:
     ordered_keys = [key for key in _POLICY_SEVERITY_ORDER if key in by_severity]
     ordered_keys.extend(sorted(key for key in by_severity if key not in _POLICY_SEVERITY_RANK))
     return ", ".join(f"{severity}={by_severity[severity]}" for severity in ordered_keys)
+
+
+def _build_policy_stage_counts(policy_findings: list[dict[str, object]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for finding in policy_findings:
+        stage = finding.get("stage")
+        if isinstance(stage, str):
+            counts[stage] = counts.get(stage, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _build_affected_files(policy_findings: list[dict[str, object]]) -> list[dict[str, object]]:
+    counts: dict[str, int] = {}
+    for finding in policy_findings:
+        path = finding.get("path")
+        if isinstance(path, str):
+            counts[path] = counts.get(path, 0) + 1
+    return [{"path": path, "finding_count": counts[path]} for path in sorted(counts)]
+
+
+def _sorted_policy_findings(policy_findings: list[dict[str, object]]) -> list[dict[str, object]]:
+    def _finding_sort_key(
+        finding: dict[str, object],
+    ) -> tuple[int, str, str, str, str, str, str, str]:
+        raw_path = finding.get("path")
+        path = raw_path if isinstance(raw_path, str) else ""
+        path_rank = 0 if isinstance(raw_path, str) else 1
+        stage = finding.get("stage")
+        rule_id = finding.get("rule_id")
+        reason_code = finding.get("reason_code")
+        severity = finding.get("severity")
+        action = finding.get("action")
+        message = finding.get("message")
+        return (
+            path_rank,
+            path,
+            stage if isinstance(stage, str) else "",
+            rule_id if isinstance(rule_id, str) else "",
+            reason_code if isinstance(reason_code, str) else "",
+            severity if isinstance(severity, str) else "",
+            action if isinstance(action, str) else "",
+            message if isinstance(message, str) else "",
+        )
+
+    return sorted(policy_findings, key=_finding_sort_key)
+
+
+def _build_policy_dry_run_payload(
+    *, policy_findings: list[dict[str, object]], policy_counts: dict[str, object] | None
+) -> dict[str, object]:
+    counts = policy_counts or {
+        "total": len(policy_findings),
+        "by_severity": {},
+        "by_action": {},
+        "by_reason_code": {},
+    }
+    sorted_findings = _sorted_policy_findings(policy_findings)
+    return {
+        "schema_version": 1,
+        "mode": "policy_dry_run",
+        "finding_count": len(sorted_findings),
+        "by_severity": counts["by_severity"],
+        "by_action": counts["by_action"],
+        "by_reason_code": counts["by_reason_code"],
+        "by_stage": _build_policy_stage_counts(sorted_findings),
+        "affected_files": _build_affected_files(sorted_findings),
+        "non_file_finding_count": sum(
+            1 for finding in sorted_findings if not isinstance(finding.get("path"), str)
+        ),
+        "findings": sorted_findings,
+    }
+
+
+def _print_policy_dry_run_text(payload: dict[str, object]) -> None:
+    finding_count = cast(int, payload["finding_count"])
+    by_severity = cast(dict[str, int], payload["by_severity"])
+    affected_files = cast(list[dict[str, object]], payload["affected_files"])
+    non_file_finding_count = cast(int, payload["non_file_finding_count"])
+
+    console.print("[bold]Policy dry run complete.[/bold] No packed output written.")
+    severity_summary = _format_policy_severity_summary(by_severity)
+    suffix = f" ({severity_summary})" if severity_summary else ""
+    console.print(f"[yellow]Policy findings:[/yellow] {finding_count}{suffix}")
+
+    if affected_files:
+        console.print(f"Affected files: {len(affected_files)}")
+        for entry in affected_files:
+            path = cast(str, entry["path"])
+            finding_total = cast(int, entry["finding_count"])
+            console.print(f"  [cyan]{path}[/cyan] ({finding_total} findings)")
+    else:
+        console.print("Affected files: 0")
+
+    if non_file_finding_count:
+        console.print(f"Non-file findings: {non_file_finding_count}")
+
+
+def _write_report_if_requested(
+    *,
+    config: PackConfig,
+    items: list[FileBundleItem],
+    skipped: list[SkipRecord],
+    total_bytes: int,
+    policy_finding_entries: list[dict[str, object]],
+    policy_counts: dict[str, object] | None,
+) -> None:
+    if not config.report:
+        return
+
+    included_files = [
+        build_included_file_entry(
+            path=item.relpath,
+            size=item.size_bytes,
+            ext=item.ext,
+            truncated=item.truncated,
+            redacted=item.redacted,
+            redaction_event_count=item.redaction_event_count,
+            redaction_categories=item.redaction_categories,
+            warning_entries=item.warning_entries,
+            redact_mode=config.redact,
+        )
+        for item in items
+    ]
+    skipped_files = [build_skipped_file_entry(path=r.relpath, reason=r.reason) for r in skipped]
+    report_data = ReportData(
+        included_count=len(items),
+        skipped_count=len(skipped),
+        total_bytes=total_bytes,
+        included_files=included_files,
+        skipped_files=skipped_files,
+        policy_findings=policy_finding_entries,
+        reason_code_counts=build_reason_code_counts(
+            included_files=included_files,
+            skipped_files=skipped_files,
+        ),
+        redaction_summary=build_redaction_summary(
+            included_files=included_files,
+            default_mode=config.redact,
+        ),
+        policy_finding_counts=(
+            policy_counts
+            if policy_counts is not None
+            else build_policy_finding_counts(policy_findings=policy_finding_entries)
+        ),
+    )
+    write_report(config.report, report_data)
+    console.print(f"Report written to {config.report}")
+
+
+def _enforce_policy_threshold_if_requested(
+    *,
+    enabled: bool,
+    policy_findings: list[dict[str, object]],
+    min_severity: str,
+) -> None:
+    if not enabled or not policy_findings:
+        return
+
+    deny_policy_findings = _deny_policy_findings(policy_findings)
+    failing_count = _count_failing_policy_findings(
+        deny_policy_findings,
+        min_severity=min_severity,
+    )
+    if failing_count > 0:
+        console.print(
+            "[red]Policy enforcement failed:[/red] "
+            f"{failing_count} deny finding(s) at or above "
+            f"--policy-fail-level={min_severity!r}"
+        )
+        raise typer.Exit(code=4)
 
 
 def _build_registry() -> ConverterRegistry:
@@ -359,6 +530,31 @@ def pack(config: PackConfig) -> None:
         )
         raise typer.Exit(code=3)
 
+    if config.policy_dry_run:
+        policy_payload = _build_policy_dry_run_payload(
+            policy_findings=policy_finding_entries,
+            policy_counts=policy_counts,
+        )
+        if config.policy_output == "json":
+            typer.echo(json.dumps(policy_payload, indent=2, sort_keys=True))
+        else:
+            _print_policy_dry_run_text(policy_payload)
+
+        _write_report_if_requested(
+            config=config,
+            items=items,
+            skipped=skipped,
+            total_bytes=total_bytes,
+            policy_finding_entries=policy_finding_entries,
+            policy_counts=policy_counts,
+        )
+        _enforce_policy_threshold_if_requested(
+            enabled=config.fail_on_policy_violation,
+            policy_findings=policy_finding_entries,
+            min_severity=config.policy_fail_level,
+        )
+        return
+
     header = HeaderInfo(
         root=str(config.root),
         generated_at=utcnow_iso(),
@@ -384,55 +580,16 @@ def pack(config: PackConfig) -> None:
 
     console.print(f"[green]Done![/green] {len(items)} files, {total_bytes:,} bytes -> {out_path}")
 
-    if config.report:
-        included_files = [
-            build_included_file_entry(
-                path=item.relpath,
-                size=item.size_bytes,
-                ext=item.ext,
-                truncated=item.truncated,
-                redacted=item.redacted,
-                redaction_event_count=item.redaction_event_count,
-                redaction_categories=item.redaction_categories,
-                warning_entries=item.warning_entries,
-                redact_mode=config.redact,
-            )
-            for item in items
-        ]
-        skipped_files = [build_skipped_file_entry(path=r.relpath, reason=r.reason) for r in skipped]
-        report_data = ReportData(
-            included_count=len(items),
-            skipped_count=len(skipped),
-            total_bytes=total_bytes,
-            included_files=included_files,
-            skipped_files=skipped_files,
-            policy_findings=policy_finding_entries,
-            reason_code_counts=build_reason_code_counts(
-                included_files=included_files, skipped_files=skipped_files
-            ),
-            redaction_summary=build_redaction_summary(
-                included_files=included_files,
-                default_mode=config.redact,
-            ),
-            policy_finding_counts=(
-                policy_counts
-                if policy_counts is not None
-                else build_policy_finding_counts(policy_findings=policy_finding_entries)
-            ),
-        )
-        write_report(config.report, report_data)
-        console.print(f"Report written to {config.report}")
-
-    if config.fail_on_policy_violation and policy_finding_entries:
-        deny_policy_findings = _deny_policy_findings(policy_finding_entries)
-        failing_count = _count_failing_policy_findings(
-            deny_policy_findings,
-            min_severity=config.policy_fail_level,
-        )
-        if failing_count > 0:
-            console.print(
-                "[red]Policy enforcement failed:[/red] "
-                f"{failing_count} deny finding(s) at or above "
-                f"--policy-fail-level={config.policy_fail_level!r}"
-            )
-            raise typer.Exit(code=4)
+    _write_report_if_requested(
+        config=config,
+        items=items,
+        skipped=skipped,
+        total_bytes=total_bytes,
+        policy_finding_entries=policy_finding_entries,
+        policy_counts=policy_counts,
+    )
+    _enforce_policy_threshold_if_requested(
+        enabled=config.fail_on_policy_violation,
+        policy_findings=policy_finding_entries,
+        min_severity=config.policy_fail_level,
+    )

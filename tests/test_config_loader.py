@@ -572,6 +572,25 @@ def test_load_command_config_accepts_policy_enforcement_fields(tmp_path: Path) -
     assert values["policy_fail_level"] == "high"
 
 
+def test_load_command_config_accepts_policy_dry_run_fields(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                "policy_dry_run = true",
+                'policy_output = "json"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    values, _ = load_command_config("pack", root=tmp_path, config_path=config_path)
+    assert values["policy_dry_run"] is True
+    assert values["policy_output"] == "json"
+
+
 def test_load_command_config_rejects_invalid_policy_fail_level(tmp_path: Path) -> None:
     config_path = tmp_path / "foldermix.toml"
     config_path.write_text(
@@ -591,6 +610,25 @@ def test_load_command_config_rejects_invalid_policy_fail_level(tmp_path: Path) -
     assert "policy_fail_level: expected one of 'critical, high, low, medium'" in str(exc.value)
 
 
+def test_load_command_config_rejects_invalid_policy_output(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'policy_output = "yaml"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigLoadError) as exc:
+        load_command_config("pack", root=tmp_path, config_path=config_path)
+
+    assert "policy_output: expected one of 'json, text'" in str(exc.value)
+
+
 def test_load_command_config_rejects_non_bool_fail_on_policy_violation(tmp_path: Path) -> None:
     config_path = tmp_path / "foldermix.toml"
     config_path.write_text(
@@ -608,6 +646,25 @@ def test_load_command_config_rejects_non_bool_fail_on_policy_violation(tmp_path:
         load_command_config("pack", root=tmp_path, config_path=config_path)
 
     assert "fail_on_policy_violation: expected a boolean" in str(exc.value)
+
+
+def test_load_command_config_rejects_non_bool_policy_dry_run(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'policy_dry_run = "yes"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigLoadError) as exc:
+        load_command_config("pack", root=tmp_path, config_path=config_path)
+
+    assert "policy_dry_run: expected a boolean" in str(exc.value)
 
 
 def test_load_command_config_rejects_policy_rule_without_matchers(tmp_path: Path) -> None:
