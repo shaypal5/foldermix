@@ -359,6 +359,7 @@ def pack_cmd(
         _print_effective_config("pack", merged, used_config_path)
         return
     values = merged.values
+    policy_output_explicitly_set = merged.sources.get("policy_output") != "default"
 
     if values["format"] not in ("md", "xml", "jsonl"):
         console.print(
@@ -400,7 +401,7 @@ def pack_cmd(
         )
         raise typer.Exit(code=1)
 
-    if values["policy_output"] != "text" and not values["policy_dry_run"]:
+    if policy_output_explicitly_set and not values["policy_dry_run"]:
         console.print(
             "[red]--policy-output requires --policy-dry-run.[/red]\n"
             "Run 'foldermix pack --help' for full usage information."

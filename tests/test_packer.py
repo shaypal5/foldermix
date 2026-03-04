@@ -80,6 +80,7 @@ def test_pack_policy_dry_run_text_summarizes_findings_and_skips_output(
     captured = capsys.readouterr()
     assert "Policy dry run complete." in captured.err
     assert "Policy findings: 2" in captured.err
+    assert captured.err.count("Policy findings:") == 1
     assert "Affected files: 1" in captured.err
     assert "a.txt" in captured.err
     assert "Non-file findings: 1" in captured.err
@@ -111,12 +112,14 @@ def test_pack_policy_dry_run_json_emits_machine_readable_output(
     packer.pack(config)
 
     assert not out_path.exists()
-    payload = json.loads(capsys.readouterr().out)
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
     assert payload["mode"] == "policy_dry_run"
     assert payload["finding_count"] == 1
     assert payload["by_stage"] == {"convert": 1}
     assert payload["affected_files"] == [{"path": "a.txt", "finding_count": 1}]
     assert payload["findings"][0]["rule_id"] == "convert-secret"
+    assert "Policy findings:" not in captured.err
 
 
 def test_pack_policy_dry_run_text_handles_zero_findings(

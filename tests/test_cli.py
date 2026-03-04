@@ -77,6 +77,12 @@ def test_pack_rejects_policy_output_without_policy_dry_run(tmp_path: Path) -> No
     assert "--policy-output requires --policy-dry-run" in result.output
 
 
+def test_pack_rejects_policy_output_text_without_policy_dry_run(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["pack", str(tmp_path), "--policy-output", "text"])
+    assert result.exit_code == 1
+    assert "--policy-output requires --policy-dry-run" in result.output
+
+
 def test_pack_rejects_combining_dry_run_and_policy_dry_run(tmp_path: Path) -> None:
     result = runner.invoke(app, ["pack", str(tmp_path), "--dry-run", "--policy-dry-run"])
     assert result.exit_code == 1
@@ -297,6 +303,24 @@ def test_pack_applies_config_only_fields_encoding_and_line_ending(
     config = captured["config"]
     assert config.encoding == "latin-1"
     assert config.line_ending == "crlf"
+
+
+def test_pack_rejects_configured_policy_output_without_policy_dry_run(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'policy_output = "text"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["pack", str(tmp_path), "--config", str(config_path)])
+    assert result.exit_code == 1
+    assert "--policy-output requires --policy-dry-run" in result.output
 
 
 def test_pack_print_effective_config_outputs_sources_and_exits(monkeypatch, tmp_path: Path) -> None:

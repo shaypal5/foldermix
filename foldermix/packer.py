@@ -519,10 +519,11 @@ def pack(config: PackConfig) -> None:
     policy_counts: dict[str, object] | None = None
     if policy_finding_entries:
         policy_counts = build_policy_finding_counts(policy_findings=policy_finding_entries)
-        by_severity = cast(dict[str, int], policy_counts["by_severity"])
-        severity_summary = _format_policy_severity_summary(by_severity)
-        suffix = f" ({severity_summary})" if severity_summary else ""
-        console.print(f"[yellow]Policy findings:[/yellow] {policy_counts['total']}{suffix}")
+        if not config.policy_dry_run:
+            by_severity = cast(dict[str, int], policy_counts["by_severity"])
+            severity_summary = _format_policy_severity_summary(by_severity)
+            suffix = f" ({severity_summary})" if severity_summary else ""
+            console.print(f"[yellow]Policy findings:[/yellow] {policy_counts['total']}{suffix}")
 
     if config.max_total_bytes is not None and total_bytes > config.max_total_bytes:
         console.print(
