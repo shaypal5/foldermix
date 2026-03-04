@@ -43,12 +43,12 @@ class XmlWriter(Writer):
                 for warning in warning_entries:
                     raw_code = warning.get("code", "")
                     code_text = str(raw_code).strip() or "unclassified_warning"
-                    code = saxutils.escape(code_text)
+                    code_attr = saxutils.quoteattr(code_text)
 
-                    raw_message = warning.get("message", "")
-                    message_text = str(raw_message)
+                    raw_message = warning.get("message")
+                    message_text = "" if raw_message is None else str(raw_message)
                     message = saxutils.escape(message_text)
-                    out.write(f'        <warning code="{code}">{message}</warning>\n')
+                    out.write(f"        <warning code={code_attr}>{message}</warning>\n")
                 out.write("      </warnings>\n")
             safe_content = item.content.replace("]]>", "]]]]><![CDATA[>")
             out.write(f"      <content><![CDATA[{safe_content}]]></content>\n")
