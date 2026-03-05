@@ -319,8 +319,12 @@ jobs:
           TAP_REMOTE_URL: https://x-access-token:${{ env.HOMEBREW_TAP_GITHUB_TOKEN }}@github.com/${{ env.TAP_REPOSITORY }}.git
         run: |
           set -euo pipefail
-          tap_head="$(git ls-remote --symref "${TAP_REMOTE_URL}" HEAD 2>/dev/null || true)"
-          if [ -z "${tap_head}" ]; then
+          set +e
+          tap_head="$(git ls-remote --symref "${TAP_REMOTE_URL}" HEAD 2>/dev/null)"
+          ls_remote_status=$?
+          set -e
+
+          if [ "${ls_remote_status}" -ne 0 ]; then
             echo "::warning::Tap repository ${TAP_REPOSITORY} is not accessible with HOMEBREW_TAP_GITHUB_TOKEN; skipping tap update."
             echo "tap_repo_accessible=false" >> "$GITHUB_OUTPUT"
             echo "tap_repo_has_branch=false" >> "$GITHUB_OUTPUT"
