@@ -100,8 +100,9 @@ def _parse_repeatable_csv(values: list[str] | None) -> list[str]:
         if "," in raw:
             parsed.extend(part.strip() for part in raw.split(",") if part.strip())
             continue
-        if raw:
-            parsed.append(raw)
+        stripped = raw.strip()
+        if stripped:
+            parsed.append(stripped)
     return parsed
 
 

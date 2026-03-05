@@ -29,7 +29,7 @@ def test_pack_rejects_invalid_format(tmp_path: Path) -> None:
 
 
 def test_parse_repeatable_csv_ignores_empty_values() -> None:
-    assert cli_module._parse_repeatable_csv(["", "alpha", ",,", "beta,gamma"]) == [
+    assert cli_module._parse_repeatable_csv(["", "  alpha  ", ",,", "beta,gamma", "   "]) == [
         "alpha",
         "beta",
         "gamma",
