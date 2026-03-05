@@ -311,21 +311,50 @@ jobs:
           python scripts/render_homebrew_formula.py \
             --version "${{ needs.publish-pypi.outputs.version }}" \
             --output /tmp/foldermix.rb
-      - name: Checkout tap repository
+      - name: Detect tap branch
         if: steps.tap_guard.outputs.tap_update_enabled == 'true'
+        id: tap_repo_ref
+        env:
+          TAP_REMOTE_URL: https://x-access-token:${{ env.HOMEBREW_TAP_GITHUB_TOKEN }}@github.com/${{ env.TAP_REPOSITORY }}.git
+        run: |
+          set -euo pipefail
+          branch="$(git ls-remote --symref "${TAP_REMOTE_URL}" HEAD | awk '/^ref:/ {sub("refs/heads/","",$2); print $2; exit}')"
+          if [ -n "${branch}" ] && git ls-remote --heads "${TAP_REMOTE_URL}" "${branch}" | grep -q .; then
+            echo "tap_repo_has_branch=true" >> "$GITHUB_OUTPUT"
+            echo "tap_branch=${branch}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tap_repo_has_branch=false" >> "$GITHUB_OUTPUT"
+            echo "tap_branch=main" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Checkout tap repository
+        if: >-
+          steps.tap_guard.outputs.tap_update_enabled == 'true' &&
+          steps.tap_repo_ref.outputs.tap_repo_has_branch == 'true'
         uses: actions/checkout@v4
         with:
           repository: ${{ env.TAP_REPOSITORY }}
           token: ${{ env.HOMEBREW_TAP_GITHUB_TOKEN }}
           path: homebrew-tap
+          ref: ${{ steps.tap_repo_ref.outputs.tap_branch }}
       - name: Update tap formula and push
         if: steps.tap_guard.outputs.tap_update_enabled == 'true'
+        env:
+          TAP_REMOTE_URL: https://x-access-token:${{ env.HOMEBREW_TAP_GITHUB_TOKEN }}@github.com/${{ env.TAP_REPOSITORY }}.git
         run: |
           set -euo pipefail
-          mkdir -p homebrew-tap/Formula
-          cp /tmp/foldermix.rb homebrew-tap/Formula/foldermix.rb
+          tap_branch="${{ steps.tap_repo_ref.outputs.tap_branch }}"
+          if [ "${{ steps.tap_repo_ref.outputs.tap_repo_has_branch }}" != "true" ]; then
+            rm -rf homebrew-tap
+            git init homebrew-tap
+            cd homebrew-tap
+            git checkout --orphan "${tap_branch}"
+            git remote add origin "${TAP_REMOTE_URL}"
+          else
+            cd homebrew-tap
+          fi
 
-          cd homebrew-tap
+          mkdir -p Formula
+          cp /tmp/foldermix.rb Formula/foldermix.rb
           git add Formula/foldermix.rb
           if git diff --cached --quiet -- Formula/foldermix.rb; then
             echo "Formula unchanged; nothing to commit."
@@ -335,7 +364,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "foldermix ${{ needs.publish-pypi.outputs.version }}"
-          git push
+          git push origin "HEAD:${tap_branch}"
 
   release-consumer-smoke-pypi:
     if: >-
