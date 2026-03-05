@@ -1,0 +1,46 @@
+{
+  "paths": [
+    "image.png",
+    "latin1.txt",
+    "nested folder/space name.txt",
+    "secrets.key",
+    "windows_newlines.txt"
+  ],
+  "policy_finding_counts": {
+    "by_action": {
+      "deny": 3,
+      "warn": 4
+    },
+    "by_reason_code": {
+      "POLICY_CONTENT_REGEX_MATCH": 3,
+      "POLICY_FILE_COUNT_EXCEEDED": 1,
+      "POLICY_RULE_MATCH": 1,
+      "POLICY_SKIP_REASON_MATCH": 2
+    },
+    "by_severity": {
+      "high": 3,
+      "low": 2,
+      "medium": 2
+    },
+    "total": 7
+  },
+  "reason_codes": [
+    "POLICY_CONTENT_REGEX_MATCH",
+    "POLICY_FILE_COUNT_EXCEEDED",
+    "POLICY_RULE_MATCH",
+    "POLICY_SKIP_REASON_MATCH"
+  ],
+  "rule_ids": [
+    "convert-crlf-token",
+    "convert-path-space",
+    "convert-secret-marker",
+    "pack-max-file-count",
+    "scan-excluded-ext",
+    "scan-sensitive-file"
+  ],
+  "stage_counts": {
+    "convert": 4,
+    "pack": 1,
+    "scan": 2
+  }
+}

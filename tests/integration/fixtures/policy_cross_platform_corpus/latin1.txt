@@ -1,0 +1,1 @@
+placeholder; rewritten by test with explicit latin-1 bytes

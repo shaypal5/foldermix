@@ -7,7 +7,11 @@ from pathlib import Path
 from foldermix import packer
 from foldermix.config import PackConfig
 from foldermix.policy_packs import available_policy_packs, get_policy_pack_definition
-from tests.snapshot_helpers import render_simple_project_snapshot
+from tests.snapshot_helpers import (
+    render_policy_cross_platform_report,
+    render_simple_project_snapshot,
+    summarize_policy_cross_platform_report,
+)
 
 FIXTURE_DIR = Path(__file__).parent / "integration" / "fixtures"
 
@@ -62,3 +66,12 @@ def test_policy_pack_expected_snapshots_are_in_sync(tmp_path: Path) -> None:
 
     expected = json.loads(expected_path.read_text(encoding="utf-8"))
     assert summary == expected, "policy pack snapshot fixture drifted: policy_pack_deltas.json"
+
+
+def test_policy_cross_platform_expected_snapshot_is_in_sync(tmp_path: Path) -> None:
+    expected_path = FIXTURE_DIR / "expected" / "policy_cross_platform_summary.json"
+    report = render_policy_cross_platform_report(tmp_path, FIXTURE_DIR)
+    summary = summarize_policy_cross_platform_report(report)
+
+    expected = json.loads(expected_path.read_text(encoding="utf-8"))
+    assert summary == expected, "policy cross-platform snapshot fixture drifted"

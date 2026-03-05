@@ -1,0 +1,1 @@
+Path with spaces should remain stable.

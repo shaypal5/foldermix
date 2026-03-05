@@ -1,0 +1,1 @@
+Hidden path for scanner edge coverage.
