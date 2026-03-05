@@ -125,6 +125,7 @@ def test_load_command_config_accepts_csv_list_values(tmp_path: Path) -> None:
                 "[pack]",
                 'include_ext = ".py, .md,  .txt "',
                 'drop_line_containing = "generated marker, telemetry: trace id"',
+                "min_line_length = 7",
                 "",
             ]
         ),
@@ -136,6 +137,7 @@ def test_load_command_config_accepts_csv_list_values(tmp_path: Path) -> None:
     assert used_path == config_path
     assert values["include_ext"] == [".py", ".md", ".txt"]
     assert values["drop_line_containing"] == ["generated marker", "telemetry: trace id"]
+    assert values["min_line_length"] == 7
 
 
 def test_load_command_config_accepts_drop_line_containing_list_literals(tmp_path: Path) -> None:
@@ -174,6 +176,25 @@ def test_load_command_config_rejects_invalid_list_shape(tmp_path: Path) -> None:
         load_command_config("pack", root=tmp_path, config_path=config_path)
 
     assert "expected a list of strings" in str(exc.value)
+
+
+def test_load_command_config_rejects_negative_min_line_length(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                "min_line_length = -1",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigLoadError) as exc:
+        load_command_config("pack", root=tmp_path, config_path=config_path)
+
+    assert "min_line_length: expected a non-negative integer" in str(exc.value)
 
 
 def test_load_command_config_rejects_literal_non_string(tmp_path: Path) -> None:

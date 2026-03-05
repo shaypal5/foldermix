@@ -132,6 +132,26 @@ def test_convert_record_drops_lines_containing_any_filter(tmp_path: Path) -> Non
     assert item.content == "keep one\nkeep two\n"
 
 
+def test_convert_record_drops_lines_shorter_than_min_length(tmp_path: Path) -> None:
+    path = tmp_path / "doc.txt"
+    path.write_text("x", encoding="utf-8")
+
+    class _Conv:
+        @staticmethod
+        def convert(_p: Path, encoding: str = "utf-8") -> ConversionResult:
+            return ConversionResult(content="a\nabcd\nabcde\n", converter_name="fake")
+
+    config = PackConfig(
+        root=tmp_path,
+        include_sha256=False,
+        min_line_length=5,
+    )
+    record = FileRecord(path=path, relpath="doc.txt", ext=".txt", size=1, mtime=0.0)
+    item = packer._convert_record(record, _RegistryOne(_Conv()), config)
+
+    assert item.content == "abcde\n"
+
+
 def test_convert_record_ignores_sha256_oserror(monkeypatch, tmp_path: Path) -> None:
     path = tmp_path / "a.txt"
     path.write_text("abc", encoding="utf-8")
@@ -345,3 +365,23 @@ def test_pack_output_applies_drop_line_containing(tmp_path: Path) -> None:
     output = out_path.read_text(encoding="utf-8")
     assert "drop noisy line" not in output
     assert "keep\nkeep again" in output
+
+
+def test_pack_output_applies_min_line_length(tmp_path: Path) -> None:
+    source = tmp_path / "source.txt"
+    source.write_text("a\nabcd\nabcde\n", encoding="utf-8")
+    out_path = tmp_path / "out.md"
+
+    config = PackConfig(
+        root=tmp_path,
+        out=out_path,
+        min_line_length=5,
+        include_sha256=False,
+        workers=1,
+    )
+    packer.pack(config)
+
+    output = out_path.read_text(encoding="utf-8")
+    assert "\na\n" not in output
+    assert "abcd\n" not in output
+    assert "abcde\n" in output

@@ -75,6 +75,7 @@ foldermix version
 - **Optional converters**: PDF (pypdf), OCR-enhanced PDF fallback (rapidocr + pypdfium2), Office docs (python-docx, openpyxl, python-pptx), markitdown
 - **Redaction**: Email and phone number redaction via `--redact`
 - **Line-level filtering**: Remove noisy lines via `--drop-line-containing`
+- **Minimum line threshold**: Drop short lines via `--min-line-length`
 - **SHA-256 checksums** per file
 - **Parallel processing** with configurable workers
 - **Table of contents** in Markdown output
@@ -168,6 +169,7 @@ Options:
   --on-oversize TEXT            skip or truncate [default: skip]
   --redact TEXT                 none, emails, phones, all [default: none]
   --drop-line-containing TEXT   Drop lines containing any provided literal substring (repeatable / CSV-compatible)
+  --min-line-length INTEGER     Drop lines shorter than this character length [default: 0]
   --strip-frontmatter           Strip YAML frontmatter from files
   --include-sha256 / --no-include-sha256  [default: include]
   --include-toc / --no-include-toc        [default: include]

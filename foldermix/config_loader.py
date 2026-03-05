@@ -35,6 +35,7 @@ _COMMAND_KEYS: dict[str, set[str]] = {
         "on_oversize",
         "redact",
         "drop_line_containing",
+        "min_line_length",
         "strip_frontmatter",
         "include_sha256",
         "include_toc",
@@ -61,7 +62,8 @@ _LITERALS: dict[str, set[str]] = {
     "policy_fail_level": {"low", "medium", "high", "critical"},
     "policy_output": {"text", "json"},
 }
-_INT_KEYS = {"max_bytes", "max_total_bytes", "max_files", "workers"}
+_INT_KEYS = {"max_bytes", "max_total_bytes", "max_files", "workers", "min_line_length"}
+_NON_NEGATIVE_INT_KEYS = {"min_line_length"}
 _BOOL_KEYS = {
     "hidden",
     "follow_symlinks",
@@ -174,6 +176,9 @@ def _coerce_value(key: str, value: Any, errors: list[str], *, where: str) -> Any
             return None
         if not _is_int(value):
             errors.append(f"{where}.{key}: expected an integer")
+            return value
+        if key in _NON_NEGATIVE_INT_KEYS and value < 0:
+            errors.append(f"{where}.{key}: expected a non-negative integer")
         return value
 
     if key in _BOOL_KEYS:
