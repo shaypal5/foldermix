@@ -282,6 +282,7 @@ jobs:
     needs: [publish-pypi]
     outputs:
       tap_update_enabled: ${{ steps.tap_guard.outputs.tap_update_enabled }}
+      tap_repo_accessible: ${{ steps.tap_repo_ref.outputs.tap_repo_accessible }}
     permissions:
       contents: read
     env:
@@ -318,7 +319,17 @@ jobs:
           TAP_REMOTE_URL: https://x-access-token:${{ env.HOMEBREW_TAP_GITHUB_TOKEN }}@github.com/${{ env.TAP_REPOSITORY }}.git
         run: |
           set -euo pipefail
-          branch="$(git ls-remote --symref "${TAP_REMOTE_URL}" HEAD | awk '/^ref:/ {sub("refs/heads/","",$2); print $2; exit}')"
+          tap_head="$(git ls-remote --symref "${TAP_REMOTE_URL}" HEAD 2>/dev/null || true)"
+          if [ -z "${tap_head}" ]; then
+            echo "::warning::Tap repository ${TAP_REPOSITORY} is not accessible with HOMEBREW_TAP_GITHUB_TOKEN; skipping tap update."
+            echo "tap_repo_accessible=false" >> "$GITHUB_OUTPUT"
+            echo "tap_repo_has_branch=false" >> "$GITHUB_OUTPUT"
+            echo "tap_branch=main" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "tap_repo_accessible=true" >> "$GITHUB_OUTPUT"
+          branch="$(printf "%s\n" "${tap_head}" | awk '/^ref:/ {sub("refs/heads/","",$2); print $2; exit}')"
           if [ -n "${branch}" ] && git ls-remote --heads "${TAP_REMOTE_URL}" "${branch}" | grep -q .; then
             echo "tap_repo_has_branch=true" >> "$GITHUB_OUTPUT"
             echo "tap_branch=${branch}" >> "$GITHUB_OUTPUT"
@@ -326,9 +337,15 @@ jobs:
             echo "tap_repo_has_branch=false" >> "$GITHUB_OUTPUT"
             echo "tap_branch=main" >> "$GITHUB_OUTPUT"
           fi
+      - name: Skip tap update (repository inaccessible)
+        if: >-
+          steps.tap_guard.outputs.tap_update_enabled == 'true' &&
+          steps.tap_repo_ref.outputs.tap_repo_accessible != 'true'
+        run: echo "Tap repository is not accessible with current token; skipping tap update."
       - name: Checkout tap repository
         if: >-
           steps.tap_guard.outputs.tap_update_enabled == 'true' &&
+          steps.tap_repo_ref.outputs.tap_repo_accessible == 'true' &&
           steps.tap_repo_ref.outputs.tap_repo_has_branch == 'true'
         uses: actions/checkout@v4
         with:
@@ -337,7 +354,9 @@ jobs:
           path: homebrew-tap
           ref: ${{ steps.tap_repo_ref.outputs.tap_branch }}
       - name: Update tap formula and push
-        if: steps.tap_guard.outputs.tap_update_enabled == 'true'
+        if: >-
+          steps.tap_guard.outputs.tap_update_enabled == 'true' &&
+          steps.tap_repo_ref.outputs.tap_repo_accessible == 'true'
         env:
           TAP_REMOTE_URL: https://x-access-token:${{ env.HOMEBREW_TAP_GITHUB_TOKEN }}@github.com/${{ env.TAP_REPOSITORY }}.git
           TAP_BRANCH: ${{ steps.tap_repo_ref.outputs.tap_branch }}
@@ -470,7 +489,8 @@ jobs:
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
       needs.publish-pypi.outputs.should_publish == 'true' &&
-      needs.update-homebrew-tap.outputs.tap_update_enabled == 'true'
+      needs.update-homebrew-tap.outputs.tap_update_enabled == 'true' &&
+      needs.update-homebrew-tap.outputs.tap_repo_accessible == 'true'
     runs-on: macos-latest
     needs: [publish-pypi, update-homebrew-tap]
     permissions:
