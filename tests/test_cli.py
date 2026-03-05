@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 import foldermix.packer as packer_module
 import foldermix.scanner as scanner_module
 from foldermix import __version__
+from foldermix import cli as cli_module
 from foldermix.cli import app
 
 runner = CliRunner()
@@ -25,6 +26,14 @@ def test_pack_rejects_invalid_format(tmp_path: Path) -> None:
     assert "Invalid format" in result.output
     assert "md, xml, jsonl" in result.output
     assert "--help" in result.output
+
+
+def test_parse_repeatable_csv_ignores_empty_values() -> None:
+    assert cli_module._parse_repeatable_csv(["", "alpha", ",,", "beta,gamma"]) == [
+        "alpha",
+        "beta",
+        "gamma",
+    ]
 
 
 def test_pack_invalid_format_fails_before_stdin_read(monkeypatch, tmp_path: Path) -> None:
