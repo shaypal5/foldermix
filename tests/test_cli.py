@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 import foldermix.packer as packer_module
 import foldermix.scanner as scanner_module
 from foldermix import __version__
+from foldermix import cli as cli_module
 from foldermix.cli import app
 
 runner = CliRunner()
@@ -25,6 +26,14 @@ def test_pack_rejects_invalid_format(tmp_path: Path) -> None:
     assert "Invalid format" in result.output
     assert "md, xml, jsonl" in result.output
     assert "--help" in result.output
+
+
+def test_parse_repeatable_csv_ignores_empty_values() -> None:
+    assert cli_module._parse_repeatable_csv(["", "  alpha  ", ",,", "beta,gamma", "   "]) == [
+        "alpha",
+        "beta",
+        "gamma",
+    ]
 
 
 def test_pack_invalid_format_fails_before_stdin_read(monkeypatch, tmp_path: Path) -> None:
@@ -114,6 +123,10 @@ def test_pack_builds_config_and_calls_packer(monkeypatch, tmp_path: Path) -> Non
             "truncate",
             "--redact",
             "all",
+            "--drop-line-containing",
+            "generated marker,telemetry noise",
+            "--drop-line-containing",
+            "multi word phrase",
             "--no-include-sha256",
             "--no-include-toc",
             "--pdf-ocr",
@@ -136,6 +149,11 @@ def test_pack_builds_config_and_calls_packer(monkeypatch, tmp_path: Path) -> Non
     assert config.exclude_dirs == ["node_modules", "dist"]
     assert config.on_oversize == "truncate"
     assert config.redact == "all"
+    assert config.drop_line_containing == [
+        "generated marker",
+        "telemetry noise",
+        "multi word phrase",
+    ]
     assert config.include_sha256 is False
     assert config.include_toc is False
     assert config.pdf_ocr is True
@@ -163,6 +181,7 @@ def test_pack_loads_values_from_config_file(monkeypatch, tmp_path: Path) -> None
                 'include_ext = [".py", ".md"]',
                 "include_sha256 = false",
                 "pdf_ocr = true",
+                'drop_line_containing = ["generated marker", "trace id: "]',
                 'policy_pack = "legal-hold"',
                 "fail_on_policy_violation = true",
                 'policy_fail_level = "critical"',
@@ -188,6 +207,7 @@ def test_pack_loads_values_from_config_file(monkeypatch, tmp_path: Path) -> None
     assert config.include_ext == [".py", ".md"]
     assert config.include_sha256 is False
     assert config.pdf_ocr is True
+    assert config.drop_line_containing == ["generated marker", "trace id: "]
     assert config.policy_pack == "legal-hold"
     assert config.fail_on_policy_violation is True
     assert config.policy_fail_level == "critical"

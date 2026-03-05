@@ -109,6 +109,29 @@ def test_convert_record_applies_frontmatter_redaction_and_crlf(tmp_path: Path) -
     assert "\r\n" in item.content
 
 
+def test_convert_record_drops_lines_containing_any_filter(tmp_path: Path) -> None:
+    path = tmp_path / "doc.txt"
+    path.write_text("x", encoding="utf-8")
+
+    class _Conv:
+        @staticmethod
+        def convert(_p: Path, encoding: str = "utf-8") -> ConversionResult:
+            content = (
+                "keep one\ndrop generated marker line\ndrop telemetry trace id: 123\nkeep two\n"
+            )
+            return ConversionResult(content=content, converter_name="fake")
+
+    config = PackConfig(
+        root=tmp_path,
+        include_sha256=False,
+        drop_line_containing=["generated marker", "trace id: 123"],
+    )
+    record = FileRecord(path=path, relpath="doc.txt", ext=".txt", size=1, mtime=0.0)
+    item = packer._convert_record(record, _RegistryOne(_Conv()), config)
+
+    assert item.content == "keep one\nkeep two\n"
+
+
 def test_convert_record_ignores_sha256_oserror(monkeypatch, tmp_path: Path) -> None:
     path = tmp_path / "a.txt"
     path.write_text("abc", encoding="utf-8")
@@ -303,3 +326,22 @@ def test_pack_generates_default_output_name_when_out_not_set(tmp_path: Path, mon
     generated = list(tmp_path.glob("foldermix_*.md"))
     assert len(generated) == 1
     assert "# FolderPack Context" in generated[0].read_text(encoding="utf-8")
+
+
+def test_pack_output_applies_drop_line_containing(tmp_path: Path) -> None:
+    source = tmp_path / "source.txt"
+    source.write_text("keep\ndrop noisy line\nkeep again\n", encoding="utf-8")
+    out_path = tmp_path / "out.md"
+
+    config = PackConfig(
+        root=tmp_path,
+        out=out_path,
+        drop_line_containing=["noisy line"],
+        include_sha256=False,
+        workers=1,
+    )
+    packer.pack(config)
+
+    output = out_path.read_text(encoding="utf-8")
+    assert "drop noisy line" not in output
+    assert "keep\nkeep again" in output
