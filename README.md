@@ -137,6 +137,7 @@ printf 'tickets/a.md\ntickets/b.log\n' | foldermix pack . --config foldermix.tom
 ```
 
 For a longer config-first walkthrough, see [docs/config-first-workflows.md](docs/config-first-workflows.md).
+For policy-focused operational guidance, see [docs/compliance-safety.md](docs/compliance-safety.md).
 
 ## Command Reference
 
@@ -304,6 +305,8 @@ Redaction traceability semantics:
 ## Policy Engine Core
 
 `foldermix` supports rule-based policy evaluation during scan, convert, and pack summary phases.
+For an end-to-end compliance workflow (pack selection, enforcement, exit codes, and reason-code reference),
+see [docs/compliance-safety.md](docs/compliance-safety.md).
 
 Use `foldermix.toml` (`[pack]`) to define rules:
 

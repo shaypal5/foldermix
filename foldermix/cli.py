@@ -27,7 +27,10 @@ app = typer.Typer(
         "  list    – Preview which files would be included without packing.\n\n"
         "  stats   – Show file-count and byte-size statistics for a directory.\n\n"
         "  version – Print the installed foldermix version.\n\n"
-        "Run 'foldermix COMMAND --help' for detailed options on any command."
+        "Run 'foldermix COMMAND --help' for detailed options on any command.\n\n"
+        "Guides:\n\n"
+        "  Config-first workflows: docs/config-first-workflows.md\n\n"
+        "  Compliance & safety:   docs/compliance-safety.md"
     ),
     add_completion=False,
 )

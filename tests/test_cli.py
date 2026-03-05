@@ -659,3 +659,4 @@ def test_root_help_lists_all_commands() -> None:
     assert "stats" in result.output
     assert "version" in result.output
     assert "foldermix COMMAND" in result.output
+    assert "docs/compliance-safety.md" in result.output
