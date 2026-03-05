@@ -81,5 +81,16 @@ def apply_redaction_with_trace(text: str, mode: str) -> tuple[str, dict[str, int
     return text, category_counts
 
 
+def drop_lines_containing(text: str, filters: list[str]) -> str:
+    active_filters = tuple(filter_value for filter_value in filters if filter_value)
+    if not active_filters:
+        return text
+    return "".join(
+        line
+        for line in text.splitlines(keepends=True)
+        if not any(filter_value in line for filter_value in active_filters)
+    )
+
+
 def strip_yaml_frontmatter(text: str) -> str:
     return re.sub(r"^---\s*\n.*?\n---\s*\n", "", text, count=1, flags=re.DOTALL)

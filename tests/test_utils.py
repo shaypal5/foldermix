@@ -121,6 +121,19 @@ def test_apply_redaction_with_trace_returns_empty_counts_when_no_match() -> None
     assert counts == {}
 
 
+def test_drop_lines_containing_uses_or_semantics() -> None:
+    text = "keep one\nremove telemetry line\nalso remove multi word marker here\nkeep two\n"
+    filtered = utils.drop_lines_containing(text, ["telemetry line", "multi word marker"])
+    assert filtered == "keep one\nkeep two\n"
+
+
+def test_drop_lines_containing_ignores_empty_filters_and_no_match() -> None:
+    text = "keep\r\nkeep again\r\n"
+    assert utils.drop_lines_containing(text, []) == text
+    assert utils.drop_lines_containing(text, [""]) == text
+    assert utils.drop_lines_containing(text, ["not present"]) == text
+
+
 def test_strip_yaml_frontmatter_only_at_start() -> None:
     text = "---\ntitle: test\n---\nbody\n"
     assert utils.strip_yaml_frontmatter(text) == "body\n"

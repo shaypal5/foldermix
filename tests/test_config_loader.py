@@ -124,6 +124,7 @@ def test_load_command_config_accepts_csv_list_values(tmp_path: Path) -> None:
             [
                 "[pack]",
                 'include_ext = ".py, .md,  .txt "',
+                'drop_line_containing = "generated marker, telemetry: trace id"',
                 "",
             ]
         ),
@@ -134,6 +135,26 @@ def test_load_command_config_accepts_csv_list_values(tmp_path: Path) -> None:
 
     assert used_path == config_path
     assert values["include_ext"] == [".py", ".md", ".txt"]
+    assert values["drop_line_containing"] == ["generated marker", "telemetry: trace id"]
+
+
+def test_load_command_config_accepts_drop_line_containing_list_literals(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'drop_line_containing = ["do not edit, generated", "multi word marker"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    values, used_path = load_command_config("pack", root=tmp_path, config_path=config_path)
+
+    assert used_path == config_path
+    assert values["drop_line_containing"] == ["do not edit, generated", "multi word marker"]
 
 
 def test_load_command_config_rejects_invalid_list_shape(tmp_path: Path) -> None:

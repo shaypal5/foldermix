@@ -57,6 +57,7 @@ _PACK_PARAM_BY_KEY = {
     "continue_on_error": "continue_on_error",
     "on_oversize": "on_oversize",
     "redact": "redact",
+    "drop_line_containing": "drop_line_containing",
     "strip_frontmatter": "strip_frontmatter",
     "include_sha256": "include_sha256",
     "include_toc": "include_toc",
@@ -89,6 +90,19 @@ def _parse_csv(val: str | None) -> list[str] | None:
     if val is None:
         return None
     return [v.strip() for v in val.split(",") if v.strip()]
+
+
+def _parse_repeatable_csv(values: list[str] | None) -> list[str]:
+    if not values:
+        return []
+    parsed: list[str] = []
+    for raw in values:
+        if "," in raw:
+            parsed.extend(part.strip() for part in raw.split(",") if part.strip())
+            continue
+        if raw:
+            parsed.append(raw)
+    return parsed
 
 
 def _print_effective_config(
@@ -208,6 +222,14 @@ def pack_cmd(
         "none",
         "--redact",
         help="Redact sensitive patterns before writing: none, emails, phones, all [default: none]",
+    ),
+    drop_line_containing: list[str] | None = typer.Option(
+        None,
+        "--drop-line-containing",
+        help=(
+            "Drop lines that contain any provided literal substring. "
+            "May be repeated; each value can also be comma-separated."
+        ),
     ),
     strip_frontmatter: bool = typer.Option(
         False,
@@ -329,6 +351,7 @@ def pack_cmd(
         "continue_on_error": continue_on_error,
         "on_oversize": on_oversize,
         "redact": redact,
+        "drop_line_containing": _parse_repeatable_csv(drop_line_containing),
         "strip_frontmatter": strip_frontmatter,
         "include_sha256": include_sha256,
         "include_toc": include_toc,

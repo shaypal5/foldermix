@@ -34,6 +34,7 @@ _COMMAND_KEYS: dict[str, set[str]] = {
         "continue_on_error",
         "on_oversize",
         "redact",
+        "drop_line_containing",
         "strip_frontmatter",
         "include_sha256",
         "include_toc",
@@ -78,7 +79,14 @@ _BOOL_KEYS = {
 }
 _STR_KEYS = {"encoding"}
 _PATH_KEYS = {"out", "report"}
-_LIST_KEYS = {"include_ext", "exclude_ext", "exclude_dirs", "exclude_glob", "include_glob"}
+_LIST_KEYS = {
+    "include_ext",
+    "exclude_ext",
+    "exclude_dirs",
+    "exclude_glob",
+    "include_glob",
+    "drop_line_containing",
+}
 _POLICY_RULE_KEYS = {
     "rule_id",
     "description",
