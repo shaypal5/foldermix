@@ -451,9 +451,11 @@ def test_list_print_effective_config_outputs_sources_and_exits(monkeypatch, tmp_
     config_path.write_text(
         "\n".join(
             [
-                "[list]",
+                "[pack]",
                 "hidden = true",
                 'include_ext = [".py"]',
+                'exclude_glob = ["*.tmp"]',
+                'format = "xml"',
                 "",
             ]
         ),
@@ -482,6 +484,9 @@ def test_list_print_effective_config_outputs_sources_and_exits(monkeypatch, tmp_
     assert effective["include_ext"]["source"] == "cli"
     assert effective["hidden"]["value"] is True
     assert effective["hidden"]["source"] == "config"
+    assert effective["exclude_glob"]["value"] == ["*.tmp"]
+    assert effective["exclude_glob"]["source"] == "config"
+    assert "format" not in effective
 
 
 def test_stats_print_effective_config_outputs_sources_and_exits(
@@ -537,6 +542,93 @@ def test_list_shows_included_and_skipped_files(tmp_path: Path) -> None:
     assert "keep.txt" in result.output
     assert ".hidden" not in result.output
     assert "1 files would be included, 1 skipped." in result.output
+
+
+def test_list_rejects_invalid_on_oversize(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["list", str(tmp_path), "--on-oversize", "bad"])
+
+    assert result.exit_code == 1
+    assert "Invalid --on-oversize" in result.output
+    assert "skip, truncate" in result.output
+
+
+def test_list_reports_glob_excluded_files_from_pack_config(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'exclude_glob = ["*.tmp"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (root / "keep.txt").write_text("ok", encoding="utf-8")
+    (root / "skip.tmp").write_text("skip", encoding="utf-8")
+
+    result = runner.invoke(app, ["list", str(root), "--config", str(config_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "keep.txt" in result.output
+    assert "skip.tmp" not in result.output
+    assert "1 files would be included, 1 skipped." in result.output
+
+
+def test_list_honors_include_glob_override_from_pack_config(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'exclude_glob = ["*.txt"]',
+                'include_glob = ["keep.txt"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (root / "keep.txt").write_text("keep", encoding="utf-8")
+    (root / "skip.txt").write_text("skip", encoding="utf-8")
+
+    result = runner.invoke(app, ["list", str(root), "--config", str(config_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "keep.txt" in result.output
+    assert "skip.txt" not in result.output
+    assert "1 files would be included, 1 skipped." in result.output
+
+
+def test_list_honors_exclude_dirs_from_pack_config(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'exclude_dirs = ["blocked"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    blocked = root / "blocked" / "note.txt"
+    allowed = root / "ok.txt"
+    blocked.parent.mkdir()
+    blocked.write_text("blocked", encoding="utf-8")
+    allowed.write_text("ok", encoding="utf-8")
+
+    result = runner.invoke(app, ["list", str(root), "--config", str(config_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "ok.txt" in result.output
+    assert "blocked/note.txt" not in result.output
+    assert "1 files would be included, 0 skipped." in result.output
 
 
 def test_skiplist_shows_skipped_files_with_reason_codes(tmp_path: Path) -> None:
@@ -983,7 +1075,7 @@ def test_list_discovers_default_config(tmp_path: Path) -> None:
     config_path.write_text(
         "\n".join(
             [
-                "[list]",
+                "[pack]",
                 "hidden = true",
                 "",
             ]
@@ -1006,7 +1098,7 @@ def test_list_reports_invalid_config(tmp_path: Path) -> None:
     config_path.write_text(
         "\n".join(
             [
-                "[list]",
+                "[pack]",
                 'hidden = "yes"',
                 "",
             ]
@@ -1171,11 +1263,16 @@ def test_list_help_all_options_documented() -> None:
     result = runner.invoke(app, ["list", "--help"])
     assert result.exit_code == 0
     output = _strip_ansi(result.output)
-    # Options that previously had no help text now show descriptions
     assert "--include-ext" in output
     assert "--exclude-ext" in output
+    assert "--exclude-dirs" in output
+    assert "--exclude-glob" in output
+    assert "--include-glob" in output
+    assert "--max-bytes" in output
     assert "hidden" in output
+    assert "--follow-symlinks" in output
     assert "gitignore" in output
+    assert "--on-oversize" in output
     assert "--stdin" in output
     assert "--null" in output
     assert "Examples:" in output

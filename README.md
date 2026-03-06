@@ -232,8 +232,14 @@ foldermix list [OPTIONS] [PATH]
   --config PATH
   --include-ext TEXT
   --exclude-ext TEXT
+  --exclude-dirs TEXT
+  --exclude-glob TEXT
+  --include-glob TEXT
+  --max-bytes INTEGER
   --hidden
+  --follow-symlinks
   --respect-gitignore / --no-respect-gitignore
+  --on-oversize TEXT
   --stdin
   --null
   --print-effective-config
