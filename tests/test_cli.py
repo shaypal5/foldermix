@@ -573,6 +573,44 @@ def test_skiplist_conversion_check_reports_missing_optional_dependency(
     assert "foldermix[pdf]" in result.output
 
 
+def test_skiplist_conversion_check_reports_unsupported_extensions(tmp_path: Path) -> None:
+    (tmp_path / "notes").write_text("plain text without extension", encoding="utf-8")
+    (tmp_path / "custom.weird").write_text("custom content", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "skiplist",
+            str(tmp_path),
+            "--conversion-check",
+            "--stdin",
+        ],
+        input=f"{tmp_path / 'notes'}\n{tmp_path / 'custom.weird'}\n",
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "SKIP_UNSUPPORTED_EXTENSION" in result.output
+    assert "notes" in result.output
+    assert "custom.weird" in result.output
+    assert "files without" in result.output
+    assert "an extension" in result.output
+    assert "extension '.weird'" in result.output
+
+
+def test_skiplist_conversion_check_uses_real_converter_registry(tmp_path: Path) -> None:
+    (tmp_path / "keep.txt").write_text("ok", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        ["skiplist", str(tmp_path), "--conversion-check", "--include-ext", ".txt"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "SKIP_UNSUPPORTED_EXTENSION" not in result.output
+    assert "SKIP_OPTIONAL_DEPENDENCY_MISSING" not in result.output
+    assert "0 files would be skipped." in result.output
+
+
 def test_list_discovers_default_config(tmp_path: Path) -> None:
     config_path = tmp_path / "foldermix.toml"
     config_path.write_text(
@@ -610,6 +648,26 @@ def test_list_reports_invalid_config(tmp_path: Path) -> None:
     )
 
     result = runner.invoke(app, ["list", str(tmp_path), "--config", str(config_path)])
+
+    assert result.exit_code == 1
+    assert "Invalid config at" in result.output
+    assert "hidden: expected a boolean" in result.output
+
+
+def test_skiplist_reports_invalid_config(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[list]",
+                'hidden = "yes"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["skiplist", str(tmp_path), "--config", str(config_path)])
 
     assert result.exit_code == 1
     assert "Invalid config at" in result.output
