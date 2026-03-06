@@ -36,6 +36,22 @@ def test_docx_fallback_convert(monkeypatch, tmp_path: Path) -> None:
     assert result.converter_name == "python-docx"
 
 
+def test_docx_fallback_compacts_blank_runs(monkeypatch, tmp_path: Path) -> None:
+    path = tmp_path / "f.docx"
+    path.write_text("placeholder", encoding="utf-8")
+    paragraphs = [
+        SimpleNamespace(text="Title"),
+        SimpleNamespace(text=""),
+        SimpleNamespace(text=" \t"),
+        SimpleNamespace(text="Body"),
+    ]
+    fake_docx = SimpleNamespace(Document=lambda _: SimpleNamespace(paragraphs=paragraphs))
+    monkeypatch.setitem(sys.modules, "docx", fake_docx)
+
+    result = DocxFallbackConverter().convert(path)
+    assert result.content == "Title\n\nBody"
+
+
 def test_pptx_fallback_can_convert_when_installed(monkeypatch) -> None:
     monkeypatch.setitem(sys.modules, "pptx", SimpleNamespace(Presentation=lambda _: None))
     assert PptxFallbackConverter().can_convert(".pptx") is True
@@ -98,8 +114,42 @@ def test_xlsx_fallback_convert(monkeypatch, tmp_path: Path) -> None:
     result = XlsxFallbackConverter().convert(path)
     assert "## Sheet: Sheet1" in result.content
     assert "a\t1" in result.content
-    assert "b\t" in result.content
+    assert "b" in result.content
     assert result.converter_name == "openpyxl"
+
+
+def test_xlsx_fallback_trims_blank_tail_and_compacts_internal_gaps(
+    monkeypatch, tmp_path: Path
+) -> None:
+    path = tmp_path / "f.xlsx"
+    path.write_text("placeholder", encoding="utf-8")
+
+    class _Worksheet:
+        @staticmethod
+        def iter_rows(values_only: bool = True):
+            assert values_only is True
+            return [
+                ("header", "value", None),
+                ("row1", 1, None),
+                (None, None, None),
+                (None, None, None),
+                ("row2", 2, None),
+                (None, None, None),
+            ]
+
+    class _Workbook:
+        sheetnames = ["Sheet1"]
+
+        @staticmethod
+        def __getitem__(name: str):
+            assert name == "Sheet1"
+            return _Worksheet()
+
+    fake_openpyxl = SimpleNamespace(load_workbook=lambda *_args, **_kwargs: _Workbook())
+    monkeypatch.setitem(sys.modules, "openpyxl", fake_openpyxl)
+
+    result = XlsxFallbackConverter().convert(path)
+    assert result.content == "## Sheet: Sheet1\n\nheader\tvalue\nrow1\t1\n\nrow2\t2"
 
 
 def test_markitdown_convert(monkeypatch, tmp_path: Path) -> None:

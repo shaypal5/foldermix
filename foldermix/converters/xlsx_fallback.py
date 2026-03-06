@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ._normalize import collapse_blank_runs, normalize_whitespace_line
 from .base import ConversionResult
 
 
@@ -22,11 +23,13 @@ class XlsxFallbackConverter:
         for sheet_name in wb.sheetnames:
             ws = wb[sheet_name]
             parts.append(f"## Sheet: {sheet_name}")
-            rows = []
+            rows: list[str] = []
             for row in ws.iter_rows(values_only=True):
-                row_str = "\t".join("" if v is None else str(v) for v in row)
-                rows.append(row_str)
-            parts.append("\n".join(rows))
+                cells = [normalize_whitespace_line("" if v is None else str(v)) for v in row]
+                while cells and not cells[-1].strip():
+                    cells.pop()
+                rows.append("\t".join(cells))
+            parts.append("\n".join(collapse_blank_runs(rows)))
         return ConversionResult(
             content="\n\n".join(parts),
             converter_name="openpyxl",

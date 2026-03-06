@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ._normalize import collapse_blank_runs
 from .base import ConversionResult
 
 
@@ -18,7 +19,7 @@ class DocxFallbackConverter:
         import docx
 
         doc = docx.Document(str(path))
-        paragraphs = [p.text for p in doc.paragraphs]
+        paragraphs = [line for line in collapse_blank_runs(p.text for p in doc.paragraphs) if line]
         return ConversionResult(
             content="\n\n".join(paragraphs),
             converter_name="python-docx",
