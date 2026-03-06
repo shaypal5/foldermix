@@ -175,6 +175,10 @@ pytest -o addopts= tests/integration/test_pack_outputs.py -m integration -v
 - Keep PR descriptions explicit: behavior change, flags and config keys, dependency impact, and test evidence.
 - Prefer one logical change per PR.
 - Ensure CI is green before merge.
+- When asked to review an open PR, triage both failing workflows and unresolved comments before proposing or applying changes.
+- Resolve PR comments only after the corresponding code changes are pushed; then re-check for newly unresolved items.
+- If asked to raise patch/new-line coverage, verify with local pytest/coverage runs and add focused tests for uncovered new lines.
+- Use [docs/maintainer-playbook.md](docs/maintainer-playbook.md) for the detailed PR/release/tap troubleshooting runbook.
 
 ## Local overrides (optional, untracked)
 - If `LOCAL_AGENTS.md` exists at repo root, treat it as additive local instructions.

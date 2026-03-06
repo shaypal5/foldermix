@@ -1,6 +1,7 @@
 # Contributing
 
 For a full developer guide including test overview, CI workflow details, and release PR process, see the [Developer Guide](README.md#developer-guide) section in the README.
+For maintainer-oriented PR/release/tap runbooks, see [docs/maintainer-playbook.md](docs/maintainer-playbook.md).
 
 ## Dev Setup
 
@@ -91,6 +92,16 @@ Required one-time setup:
 - Create tap repo: `foldermix/homebrew-foldermix`.
 - Add Actions secret in this repo:
   - `HOMEBREW_TAP_GITHUB_TOKEN`: classic PAT (or fine-grained token) with write access to the tap repo.
+
+## Maintainer PR Checklist
+
+Use [docs/maintainer-playbook.md](docs/maintainer-playbook.md) as the canonical operational runbook. Before merge:
+
+1. CI checks are green (or intentionally skipped by workflow design).
+2. Unresolved PR comments/threads are triaged; already-addressed items are resolved.
+3. Patch/new-line coverage expectations for the PR are satisfied (target 100% when explicitly requested).
+4. Snapshot fixtures are updated in the same PR when behavior changes.
+5. PR description clearly captures behavior changes and validation evidence.
 
 ## AI Coding Agent Guide
 
