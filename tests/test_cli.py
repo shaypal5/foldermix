@@ -1057,6 +1057,8 @@ def test_skiplist_print_effective_config_outputs_sources_and_exits(
                 "hidden = true",
                 'include_ext = [".py"]',
                 'exclude_glob = ["*.tmp"]',
+                'format = "xml"',
+                'out = "ignored.md"',
                 "",
             ]
         ),
@@ -1087,6 +1089,8 @@ def test_skiplist_print_effective_config_outputs_sources_and_exits(
     assert effective["hidden"]["source"] == "config"
     assert effective["exclude_glob"]["value"] == ["*.tmp"]
     assert effective["exclude_glob"]["source"] == "config"
+    assert "format" not in effective
+    assert "out" not in effective
 
 
 def test_stats_prints_summary_and_extensions(tmp_path: Path) -> None:

@@ -871,6 +871,7 @@ def skiplist_cmd(
     except ConfigLoadError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from exc
+    overrides = {key: value for key, value in overrides.items() if key in values}
     merged = merge_config_layers(
         ctx,
         defaults=values,
