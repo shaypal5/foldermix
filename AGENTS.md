@@ -45,7 +45,7 @@ foldermix/
 `PackConfig` is a slots dataclass that holds every pack parameter.  It is the single contract passed from the CLI to the packer — do not add business logic here.  Also defines `DEFAULT_EXCLUDE_EXT`, `DEFAULT_EXCLUDE_DIRS`, and `SENSITIVE_PATTERNS`.
 
 ### `foldermix/config_loader.py`
-Reads `foldermix.toml` (auto-discovered by walking up from the target path, or explicitly via `--config`).  The TOML file may use a flat layout or named sections (`[pack]`, `[list]`, `[stats]`, `[common]`).  It may also be embedded under `[tool.foldermix]` in any project TOML.  Invalid keys or wrong types raise `ConfigLoadError`.
+Reads `foldermix.toml` (auto-discovered by walking up from the target path, or explicitly via `--config`).  The TOML file may use a flat layout or named sections (`[pack]`, `[stats]`, `[common]`; legacy `[list]` is still accepted by the loader).  `pack`, `list`, and `skiplist` share scanner-affecting config from `[pack]`, while `stats` reads `[stats]`.  Config may also be embedded under `[tool.foldermix]` in any project TOML.  Invalid keys or wrong types raise `ConfigLoadError`.
 
 ### `foldermix/scanner.py`
 `scan(config) -> (included, skipped)` walks the directory tree and returns `FileRecord` / `SkipRecord` lists.  Key behaviours:
