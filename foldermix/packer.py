@@ -12,12 +12,8 @@ from rich.console import Console
 from . import __version__
 from .config import PackConfig
 from .converters.base import ConverterRegistry
-from .converters.docx_fallback import DocxFallbackConverter
-from .converters.markitdown_conv import MarkitdownConverter
 from .converters.pdf_fallback import PdfFallbackConverter
-from .converters.pptx_fallback import PptxFallbackConverter
-from .converters.text import TextConverter
-from .converters.xlsx_fallback import XlsxFallbackConverter
+from .converters.registry import build_converter_registry
 from .policy import PolicyEvaluator, normalize_policy_rules
 from .policy_packs import combine_policy_rules
 from .report import (
@@ -250,14 +246,7 @@ def _enforce_policy_threshold_if_requested(
 
 
 def _build_registry() -> ConverterRegistry:
-    registry = ConverterRegistry()
-    registry.register(MarkitdownConverter())
-    registry.register(PdfFallbackConverter())
-    registry.register(DocxFallbackConverter())
-    registry.register(XlsxFallbackConverter())
-    registry.register(PptxFallbackConverter())
-    registry.register(TextConverter())
-    return registry
+    return build_converter_registry()
 
 
 def _get_writer(fmt: str, include_toc: bool = True):

@@ -539,6 +539,80 @@ def test_list_shows_included_and_skipped_files(tmp_path: Path) -> None:
     assert "1 files would be included, 1 skipped." in result.output
 
 
+def test_skiplist_shows_skipped_files_with_reason_codes(tmp_path: Path) -> None:
+    (tmp_path / "keep.txt").write_text("ok")
+    (tmp_path / ".hidden").write_text("secret")
+
+    result = runner.invoke(app, ["skiplist", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert ".hidden" in result.output
+    assert "SKIP_HIDDEN" in result.output
+    assert "keep.txt" not in result.output
+    assert "1 files would be skipped." in result.output
+
+
+def test_skiplist_conversion_check_reports_missing_optional_dependency(
+    monkeypatch, tmp_path: Path
+) -> None:
+    (tmp_path / "doc.pdf").write_text("not a real pdf", encoding="utf-8")
+
+    class DummyRegistry:
+        def get_converter(self, _ext: str):
+            return None
+
+    monkeypatch.setattr(cli_module, "_build_converter_registry", lambda: DummyRegistry())
+
+    result = runner.invoke(
+        app, ["skiplist", str(tmp_path), "--conversion-check", "--include-ext", ".pdf"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "doc.pdf" in result.output
+    assert "SKIP_OPTIONAL_DEPENDENCY_MISSING" in result.output
+    assert "foldermix[pdf]" in result.output
+
+
+def test_skiplist_conversion_check_reports_unsupported_extensions(tmp_path: Path) -> None:
+    (tmp_path / "notes").write_text("plain text without extension", encoding="utf-8")
+    (tmp_path / "custom.weird").write_text("custom content", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "skiplist",
+            str(tmp_path),
+            "--conversion-check",
+            "--stdin",
+        ],
+        input=f"{tmp_path / 'notes'}\n{tmp_path / 'custom.weird'}\n",
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "SKIP_UNSUPPORTED_EXTENSION" in result.output
+    assert "notes" in result.output
+    assert "custom.weird" in result.output
+    assert "files without" in result.output
+    assert "an extension" in result.output
+    assert "extension '.weird'" in result.output
+
+
+def test_skiplist_conversion_check_uses_real_converter_registry(tmp_path: Path) -> None:
+    (tmp_path / "keep.txt").write_text("ok", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        ["skiplist", str(tmp_path), "--conversion-check", "--include-ext", ".txt"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "SKIP_UNSUPPORTED_EXTENSION" not in result.output
+    assert "SKIP_OPTIONAL_DEPENDENCY_MISSING" not in result.output
+    assert "0 files would be skipped by scanning;" in result.output
+    assert "0 additional files currently lack a" in result.output
+    assert "supported converter." in result.output
+
+
 def test_list_discovers_default_config(tmp_path: Path) -> None:
     config_path = tmp_path / "foldermix.toml"
     config_path.write_text(
@@ -580,6 +654,71 @@ def test_list_reports_invalid_config(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert "Invalid config at" in result.output
     assert "hidden: expected a boolean" in result.output
+
+
+def test_skiplist_reports_invalid_config(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[list]",
+                'hidden = "yes"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["skiplist", str(tmp_path), "--config", str(config_path)])
+
+    assert result.exit_code == 1
+    assert "Invalid config at" in result.output
+    assert "hidden: expected a boolean" in result.output
+
+
+def test_skiplist_print_effective_config_outputs_sources_and_exits(
+    monkeypatch, tmp_path: Path
+) -> None:
+    def fail_scan(_config):
+        raise AssertionError("scan() should not be called in --print-effective-config mode")
+
+    monkeypatch.setattr(scanner_module, "scan", fail_scan)
+
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[list]",
+                "hidden = true",
+                'include_ext = [".py"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "skiplist",
+            str(tmp_path),
+            "--config",
+            str(config_path),
+            "--include-ext",
+            ".md,.txt",
+            "--print-effective-config",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    effective = payload["effective_config"]
+
+    assert payload["command"] == "skiplist"
+    assert effective["include_ext"]["value"] == [".md", ".txt"]
+    assert effective["include_ext"]["source"] == "cli"
+    assert effective["hidden"]["value"] is True
+    assert effective["hidden"]["source"] == "config"
 
 
 def test_stats_prints_summary_and_extensions(tmp_path: Path) -> None:
@@ -670,6 +809,21 @@ def test_list_help_all_options_documented() -> None:
     assert "Examples:" in output
 
 
+def test_skiplist_help_all_options_documented() -> None:
+    result = runner.invoke(app, ["skiplist", "--help"])
+    assert result.exit_code == 0
+    output = _strip_ansi(result.output)
+    assert "--include-ext" in output
+    assert "--exclude-ext" in output
+    assert "hidden" in output
+    assert "gitignore" in output
+    assert "--conversion-check" in output
+    assert "--scan-only" in output
+    assert "--stdin" in output
+    assert "--null" in output
+    assert "Examples:" in output
+
+
 def test_stats_help_all_options_documented() -> None:
     result = runner.invoke(app, ["stats", "--help"])
     assert result.exit_code == 0
@@ -688,6 +842,7 @@ def test_root_help_lists_all_commands() -> None:
     assert "init" in result.output
     assert "pack" in result.output
     assert "list" in result.output
+    assert "skiplist" in result.output
     assert "stats" in result.output
     assert "version" in result.output
     assert "foldermix COMMAND" in result.output

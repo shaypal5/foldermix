@@ -11,8 +11,12 @@ from rich.console import Console
 from . import __version__
 from .config import DEFAULT_EXCLUDE_DIRS, DEFAULT_EXCLUDE_EXT, PackConfig
 from .config_loader import ConfigLoadError, load_command_config
+from .converters.base import ConverterRegistry
+from .converters.registry import build_converter_registry
 from .effective_config import EffectiveConfig, effective_config_payload, merge_config_layers
 from .init_profiles import available_profiles, has_profile, render_profile_config
+from .report import build_skipped_file_entry
+from .scanner import FileRecord, SkipRecord
 from .stdin_paths import parse_stdin_paths
 
 _INIT_PROFILE_CHOICES = ", ".join(available_profiles())
@@ -25,6 +29,7 @@ app = typer.Typer(
         "  init    – Generate a starter foldermix.toml from a local-use profile.\n\n"
         "  pack    – Scan a directory and write all files into one output file.\n\n"
         "  list    – Preview which files would be included without packing.\n\n"
+        "  skiplist – Preview which files would be skipped, with reasons.\n\n"
         "  stats   – Show file-count and byte-size statistics for a directory.\n\n"
         "  version – Print the installed foldermix version.\n\n"
         "Run 'foldermix COMMAND --help' for detailed options on any command.\n\n"
@@ -89,6 +94,16 @@ _STATS_PARAM_BY_KEY = {
     "hidden": "hidden",
 }
 
+_OPTIONAL_CONVERTER_HINTS: dict[str, str] = {
+    ".pdf": (
+        "Install PDF support with 'pip install \"foldermix[pdf]\"' "
+        "or OCR support with 'pip install \"foldermix[ocr]\"'."
+    ),
+    ".docx": "Install Office support with 'pip install \"foldermix[office]\"'.",
+    ".xlsx": "Install Office support with 'pip install \"foldermix[office]\"'.",
+    ".pptx": "Install Office support with 'pip install \"foldermix[office]\"'.",
+}
+
 
 def _parse_csv(val: str | None) -> list[str] | None:
     if val is None:
@@ -130,6 +145,53 @@ def _read_stdin_paths(use_stdin: bool, null_delimited: bool) -> list[Path] | Non
         return None
     data = sys.stdin.buffer.read()
     return parse_stdin_paths(data, null_delimited=null_delimited, cwd=Path.cwd())
+
+
+def _build_converter_registry() -> ConverterRegistry:
+    return build_converter_registry()
+
+
+def _conversion_skip_entry(record: FileRecord) -> dict[str, str]:
+    ext = record.ext.lower()
+    optional_hint = _OPTIONAL_CONVERTER_HINTS.get(ext)
+    if optional_hint is not None:
+        entry = build_skipped_file_entry(
+            path=record.relpath,
+            reason="optional_dependency_missing",
+        )
+        detail = f"No converter is available for extension {ext!r}. {optional_hint}"
+        entry["message"] = f"{entry['message']} {detail}".strip()
+        return entry
+    if ext:
+        detail = f"No converter is available for extension {ext!r} with current install."
+    else:
+        detail = "No converter is available for files without an extension with current install."
+    entry = build_skipped_file_entry(
+        path=record.relpath,
+        reason="unsupported_extension",
+    )
+    entry["message"] = f"{entry['message']} {detail}".strip()
+    return entry
+
+
+def _build_skiplist_entries(
+    *, included: list[FileRecord], skipped: list[SkipRecord], conversion_check: bool
+) -> tuple[list[dict[str, str]], int]:
+    entries = [
+        build_skipped_file_entry(path=skip.relpath, reason=skip.reason)
+        for skip in sorted(skipped, key=lambda record: record.relpath.casefold())
+    ]
+    if not conversion_check:
+        return entries, 0
+
+    registry = _build_converter_registry()
+    converter_missing_count = 0
+    for record in included:
+        if registry.get_converter(record.ext) is None:
+            entries.append(_conversion_skip_entry(record))
+            converter_missing_count += 1
+    entries.sort(key=lambda entry: entry["path"].casefold())
+    return entries, converter_missing_count
 
 
 @app.command("pack")
@@ -653,6 +715,124 @@ def stats_cmd(
     console.print("\n  [bold]By extension:[/bold]")
     for ext, count in sorted(ext_counts.items(), key=lambda x: -x[1]):
         console.print(f"    {ext or '(none)':15s} {count:5d}")
+
+
+@app.command("skiplist")
+def skiplist_cmd(
+    ctx: typer.Context,
+    path: Path = typer.Argument(Path("."), help="Directory to scan"),
+    config_path: Path | None = typer.Option(
+        None, "--config", help="Path to a foldermix TOML config file"
+    ),
+    include_ext: str | None = typer.Option(
+        None, "--include-ext", help="Comma-separated file extensions to include (e.g. '.py,.md')"
+    ),
+    exclude_ext: str | None = typer.Option(
+        None, "--exclude-ext", help="Comma-separated file extensions to exclude (e.g. '.png,.zip')"
+    ),
+    hidden: bool = typer.Option(
+        False, "--hidden", help="Include hidden files and directories (names starting with '.')"
+    ),
+    respect_gitignore: bool = typer.Option(
+        True,
+        "--respect-gitignore/--no-respect-gitignore",
+        help="Skip files listed in .gitignore [default: respect]",
+    ),
+    conversion_check: bool = typer.Option(
+        False,
+        "--conversion-check/--scan-only",
+        help=(
+            "Also include files with no available converter in the current "
+            "optional-dependency install [default: scan-only]"
+        ),
+    ),
+    stdin: bool = typer.Option(
+        False,
+        "--stdin",
+        help="Read explicit file paths from standard input instead of recursively scanning PATH.",
+    ),
+    null_delimited: bool = typer.Option(
+        False,
+        "--null",
+        help="Parse stdin paths as NUL-delimited entries (compatible with find -print0). Requires --stdin.",
+    ),
+    print_effective_config: bool = typer.Option(
+        False,
+        "--print-effective-config",
+        help="Print merged effective configuration with value sources and exit",
+    ),
+) -> None:
+    """Show files that would be skipped, with reasons.
+
+    By default, this is the inverse of `foldermix list` for scanner-level
+    filtering decisions. With `--conversion-check`, it also reports files
+    that have no available converter in the current install.
+
+    Examples:
+
+    \b
+      # Show scanner-level skipped files
+      foldermix skiplist .
+
+    \b
+      # Include conversion-availability checks
+      foldermix skiplist . --conversion-check
+    """
+    from .scanner import scan
+
+    values: dict[str, object] = {
+        "root": path,
+        "include_ext": _parse_csv(include_ext),
+        "exclude_ext": _parse_csv(exclude_ext) or list(DEFAULT_EXCLUDE_EXT),
+        "hidden": hidden,
+        "respect_gitignore": respect_gitignore,
+    }
+    try:
+        overrides, used_config_path = load_command_config(
+            "list", root=path, config_path=config_path
+        )
+    except ConfigLoadError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+    merged = merge_config_layers(
+        ctx,
+        defaults=values,
+        config_overrides=overrides,
+        key_to_param_name=_LIST_PARAM_BY_KEY,
+    )
+    if print_effective_config:
+        _print_effective_config("skiplist", merged, used_config_path)
+        return
+    values = merged.values
+    stdin_paths = _read_stdin_paths(stdin, null_delimited)
+
+    pack_config = PackConfig(
+        root=values["root"],  # type: ignore[arg-type]
+        stdin_paths=stdin_paths,
+        include_ext=values["include_ext"],  # type: ignore[arg-type]
+        exclude_ext=values["exclude_ext"],  # type: ignore[arg-type]
+        hidden=values["hidden"],  # type: ignore[arg-type]
+        respect_gitignore=values["respect_gitignore"],  # type: ignore[arg-type]
+    )
+    included, skipped = scan(pack_config)
+    skip_entries, converter_missing_count = _build_skiplist_entries(
+        included=included,
+        skipped=skipped,
+        conversion_check=conversion_check,
+    )
+    for entry in skip_entries:
+        console.print(
+            f"{entry['path']}  [{entry['reason_code']}] {entry['message']}",
+            markup=False,
+        )
+    if conversion_check:
+        console.print(
+            "\n"
+            f"{len(skipped)} files would be skipped by scanning; "
+            f"{converter_missing_count} additional files currently lack a supported converter."
+        )
+    else:
+        console.print(f"\n{len(skip_entries)} files would be skipped.")
 
 
 @app.command("init")

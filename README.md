@@ -81,6 +81,7 @@ foldermix pack . --config foldermix.toml --print-effective-config
 
 ```bash
 foldermix list . --config foldermix.toml
+foldermix skiplist . --config foldermix.toml
 foldermix stats . --config foldermix.toml
 ```
 
@@ -232,6 +233,17 @@ foldermix list [OPTIONS] [PATH]
   --exclude-ext TEXT
   --hidden
   --respect-gitignore / --no-respect-gitignore
+  --stdin
+  --null
+  --print-effective-config
+
+foldermix skiplist [OPTIONS] [PATH]
+  --config PATH
+  --include-ext TEXT
+  --exclude-ext TEXT
+  --hidden
+  --respect-gitignore / --no-respect-gitignore
+  --conversion-check / --scan-only
   --stdin
   --null
   --print-effective-config
@@ -450,7 +462,7 @@ Semantics:
     - `pipx install "foldermix[all,markitdown]"`
     - `pip install "foldermix[pdf]"`, `pip install "foldermix[ocr]"`, `pip install "foldermix[office]"` in a virtualenv
 - Expected files are missing from output
-  - run `foldermix list . --config foldermix.toml` first to inspect skip behavior.
+  - run `foldermix list . --config foldermix.toml` and `foldermix skiplist . --config foldermix.toml` to inspect include/skip behavior.
   - check `.gitignore`, hidden-path defaults, extension/glob filters, and sensitive-file protection.
 - Need to see exactly which layer set each value
   - use `--print-effective-config` on `pack`, `list`, or `stats`.

@@ -35,6 +35,22 @@ def test_skip_reason_derived_maps_match_source_of_truth() -> None:
         assert SKIP_REASON_MESSAGES[reason] == info.message
 
 
+def test_build_skipped_file_entry_supports_conversion_related_reasons() -> None:
+    optional_missing = build_skipped_file_entry(
+        path="doc.pdf",
+        reason="optional_dependency_missing",
+    )
+    unsupported_ext = build_skipped_file_entry(
+        path="notes.custom",
+        reason="unsupported_extension",
+    )
+
+    assert optional_missing["reason_code"] == "SKIP_OPTIONAL_DEPENDENCY_MISSING"
+    assert "optional dependencies are missing" in optional_missing["message"]
+    assert unsupported_ext["reason_code"] == "SKIP_UNSUPPORTED_EXTENSION"
+    assert "no available converter" in unsupported_ext["message"]
+
+
 def test_write_report_backfills_reason_code_counts_when_missing(tmp_path: Path) -> None:
     report_path = tmp_path / "report.json"
     data = ReportData(

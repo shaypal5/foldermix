@@ -64,6 +64,14 @@ SKIP_REASONS: dict[str, SkipReasonInfo] = {
         code="SKIP_NOT_FILE",
         message="Explicit path is not a regular file.",
     ),
+    "optional_dependency_missing": SkipReasonInfo(
+        code="SKIP_OPTIONAL_DEPENDENCY_MISSING",
+        message="Path has no available converter because optional dependencies are missing.",
+    ),
+    "unsupported_extension": SkipReasonInfo(
+        code="SKIP_UNSUPPORTED_EXTENSION",
+        message="Path has no available converter for its extension.",
+    ),
 }
 
 # Kept as derived mappings for compatibility with existing internal/tests usage.

@@ -13,7 +13,7 @@ For a deeper orientation see [docs/agents.md](docs/agents.md).
 - Purpose: pack folders into LLM-friendly output formats (`md`, `xml`, `jsonl`)
 - Python: `>=3.10`
 - Optional extras: `pdf`, `ocr`, `office`, `markitdown`, `all`
-- Entry point: `foldermix` CLI (`foldermix/cli.py`) — four commands: `pack`, `list`, `stats`, `version`
+- Entry point: `foldermix` CLI (`foldermix/cli.py`) — commands: `init`, `pack`, `list`, `skiplist`, `stats`, `version`
 
 ## Repository layout
 
@@ -100,7 +100,7 @@ Use `--print-effective-config` on any command to inspect the merged result with 
 
 | File | Marker | What it covers |
 |------|--------|----------------|
-| `test_cli.py` | - | CLI argument validation, config construction, all four commands |
+| `test_cli.py` | - | CLI argument validation, config construction, and command behavior |
 | `test_cli_entrypoint.py` | - | CLI entry-point smoke (`foldermix --help`) |
 | `test_config_loader.py` | - | Raw config file loading, path resolution, error reporting |
 | `test_effective_config.py` | - | Merging of defaults, CLI flags, and config files into the effective config |
