@@ -48,11 +48,10 @@ _COMMAND_KEYS: dict[str, set[str]] = {
         "policy_dry_run",
         "policy_output",
     },
-    "list": {"include_ext", "exclude_ext", "hidden", "respect_gitignore"},
     "stats": {"include_ext", "hidden"},
 }
 _ALL_KEYS = set().union(*_COMMAND_KEYS.values())
-_SECTION_KEYS = {"pack", "list", "stats", "common"}
+_SECTION_KEYS = {"pack", "stats", "common"}
 
 _LITERALS: dict[str, set[str]] = {
     "format": {"md", "xml", "jsonl"},

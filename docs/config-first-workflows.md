@@ -36,6 +36,11 @@ foldermix list . --config foldermix.toml --print-effective-config
 foldermix stats . --config foldermix.toml --print-effective-config
 ```
 
+Section guidance:
+
+- put file-selection settings used by `pack`, `list`, and `skiplist` under `[pack]`
+- keep `[stats]` for stats-specific defaults
+
 ## 3) Preview Before Pack
 
 ```bash

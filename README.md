@@ -137,6 +137,11 @@ foldermix list . --print-effective-config
 foldermix stats . --print-effective-config
 ```
 
+Config section guidance:
+
+- `[pack]` is the source of truth for file-selection behavior used by `pack`, `list`, and `skiplist`
+- `[stats]` remains separate for stats-specific defaults
+
 ## Starter Config Profiles
 
 Use `foldermix init` to generate a commented starter `foldermix.toml` for common local workflows:
@@ -232,8 +237,14 @@ foldermix list [OPTIONS] [PATH]
   --config PATH
   --include-ext TEXT
   --exclude-ext TEXT
+  --exclude-dirs TEXT
+  --exclude-glob TEXT
+  --include-glob TEXT
+  --max-bytes INTEGER
   --hidden
+  --follow-symlinks
   --respect-gitignore / --no-respect-gitignore
+  --on-oversize TEXT
   --stdin
   --null
   --print-effective-config

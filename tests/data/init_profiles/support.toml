@@ -17,13 +17,7 @@ include_toc = true
 pdf_ocr = false
 pdf_ocr_strict = false
 
-# Keep list output aligned with pack filters.
-[list]
-include_ext = [".txt", ".md", ".json", ".yaml", ".yml", ".csv", ".tsv", ".log"]
-hidden = false
-respect_gitignore = true
-
-# Keep stats output aligned with pack filters.
+# Stats defaults for this profile.
 [stats]
 include_ext = [".txt", ".md", ".json", ".yaml", ".yml", ".csv", ".tsv", ".log"]
 hidden = false

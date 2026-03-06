@@ -42,8 +42,8 @@ def test_load_command_config_discovers_parent_file(tmp_path: Path) -> None:
     config_path.write_text(
         "\n".join(
             [
-                "[list]",
-                "hidden = true",
+                "[pack]",
+                'format = "xml"',
                 "",
             ]
         ),
@@ -52,10 +52,10 @@ def test_load_command_config_discovers_parent_file(tmp_path: Path) -> None:
     nested = tmp_path / "a" / "b"
     nested.mkdir(parents=True)
 
-    values, used_path = load_command_config("list", root=nested, config_path=None)
+    values, used_path = load_command_config("pack", root=nested, config_path=None)
 
     assert used_path == config_path
-    assert values["hidden"] is True
+    assert values["format"] == "xml"
 
 
 def test_load_command_config_rejects_invalid_types(tmp_path: Path) -> None:
@@ -392,7 +392,7 @@ def test_load_command_config_uses_common_section_when_command_section_missing(
         encoding="utf-8",
     )
 
-    values, _ = load_command_config("list", root=tmp_path, config_path=config_path)
+    values, _ = load_command_config("stats", root=tmp_path, config_path=config_path)
     assert values["hidden"] is True
 
 
@@ -401,7 +401,7 @@ def test_load_command_config_rejects_non_table_command_section(tmp_path: Path) -
     config_path.write_text(
         "\n".join(
             [
-                "list = 1",
+                "pack = 1",
                 "",
                 "[common]",
                 "hidden = true",
@@ -412,9 +412,28 @@ def test_load_command_config_rejects_non_table_command_section(tmp_path: Path) -
     )
 
     with pytest.raises(ConfigLoadError) as exc:
-        load_command_config("list", root=tmp_path, config_path=config_path)
+        load_command_config("pack", root=tmp_path, config_path=config_path)
 
-    assert "config.list must be a TOML table" in str(exc.value)
+    assert "config.pack must be a TOML table" in str(exc.value)
+
+
+def test_load_command_config_rejects_list_section_as_unknown_top_level_key(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[list]",
+                "hidden = true",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigLoadError) as exc:
+        load_command_config("pack", root=tmp_path, config_path=config_path)
+
+    assert "config: unknown key 'list'" in str(exc.value)
 
 
 def test_load_command_config_supports_top_level_foldermix_table(tmp_path: Path) -> None:

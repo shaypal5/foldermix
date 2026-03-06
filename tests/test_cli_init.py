@@ -46,8 +46,8 @@ def test_init_writes_expected_profile_template(tmp_path: Path, profile: str) -> 
     parsed = tomllib.loads(expected)
     assert isinstance(parsed, dict)
     assert "pack" in parsed
-    assert "list" in parsed
     assert "stats" in parsed
+    assert "list" not in parsed
 
 
 def test_init_rejects_invalid_profile(tmp_path: Path) -> None:

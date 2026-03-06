@@ -9,7 +9,6 @@ class InitProfile:
     summary: str
     rationale: str
     pack_values: dict[str, object]
-    list_values: dict[str, object]
     stats_values: dict[str, object]
 
 
@@ -26,7 +25,7 @@ def _build_profile(
     pdf_ocr: bool,
     pdf_ocr_strict: bool,
 ) -> InitProfile:
-    # Keep include-ext source-of-truth per profile while writing separate TOML sections.
+    # Keep include-ext source-of-truth per profile while writing pack/stats TOML sections.
     ext_values = list(include_ext)
     return InitProfile(
         slug=slug,
@@ -44,11 +43,6 @@ def _build_profile(
             "include_toc": True,
             "pdf_ocr": pdf_ocr,
             "pdf_ocr_strict": pdf_ocr_strict,
-        },
-        list_values={
-            "include_ext": list(ext_values),
-            "hidden": False,
-            "respect_gitignore": True,
         },
         stats_values={
             "include_ext": list(ext_values),
@@ -188,10 +182,7 @@ def render_profile_config(name: str) -> str:
     ]
     lines.extend(_render_section("pack", profile.pack_values))
     lines.append("")
-    lines.append("# Keep list output aligned with pack filters.")
-    lines.extend(_render_section("list", profile.list_values))
-    lines.append("")
-    lines.append("# Keep stats output aligned with pack filters.")
+    lines.append("# Stats defaults for this profile.")
     lines.extend(_render_section("stats", profile.stats_values))
     lines.append("")
     return "\n".join(lines)
