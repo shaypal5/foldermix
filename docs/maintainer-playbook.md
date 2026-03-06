@@ -22,7 +22,7 @@ When a PR is asked to raise patch/new-line coverage, validate locally instead of
    - `pytest -m "not integration and not slow" -o addopts=`
    - `pytest -m integration -o addopts=` (if snapshot/integration behavior changed)
 2. Run full local coverage:
-   - `pytest --cov=foldermix --cov-branch --cov-report=term-missing:skip-covered tests/`
+   - `pytest -o addopts= --cov=foldermix --cov-branch --cov-report=term-missing:skip-covered tests/`
 3. Add focused tests for each uncovered new/changed branch or line.
 4. Re-run coverage until all new lines in the PR are covered (target: 100% for PR-added lines).
 
