@@ -30,7 +30,13 @@ from .report import (
     write_report,
 )
 from .scanner import FileRecord, SkipRecord, scan
-from .utils import drop_lines_containing, mtime_iso, sha256_file, utcnow_iso
+from .utils import (
+    drop_lines_containing,
+    drop_lines_shorter_than,
+    mtime_iso,
+    sha256_file,
+    utcnow_iso,
+)
 from .warning_taxonomy import normalize_warning_entries
 from .writers.base import FileBundleItem, HeaderInfo
 from .writers.jsonl_writer import JsonlWriter
@@ -336,6 +342,8 @@ def _convert_record(
 
             if config.drop_line_containing:
                 content = drop_lines_containing(content, config.drop_line_containing)
+
+            content = drop_lines_shorter_than(content, config.min_line_length)
 
             if config.redact != "none":
                 from .utils import apply_redaction_with_trace

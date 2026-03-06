@@ -138,6 +138,7 @@ class PackConfig:
     on_oversize: Literal["skip", "truncate"] = "skip"
     redact: Literal["none", "emails", "phones", "all"] = "none"
     drop_line_containing: list[str] = field(default_factory=list)
+    min_line_length: int = 0
     strip_frontmatter: bool = False
     include_sha256: bool = True
     include_toc: bool = True

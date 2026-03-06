@@ -61,6 +61,7 @@ _PACK_PARAM_BY_KEY = {
     "on_oversize": "on_oversize",
     "redact": "redact",
     "drop_line_containing": "drop_line_containing",
+    "min_line_length": "min_line_length",
     "strip_frontmatter": "strip_frontmatter",
     "include_sha256": "include_sha256",
     "include_toc": "include_toc",
@@ -235,6 +236,13 @@ def pack_cmd(
             "May be repeated; each value can also be comma-separated."
         ),
     ),
+    min_line_length: int = typer.Option(
+        0,
+        "--min-line-length",
+        help=(
+            "Drop lines shorter than this character length. Use 0 to keep all lines [default: 0]."
+        ),
+    ),
     strip_frontmatter: bool = typer.Option(
         False,
         "--strip-frontmatter",
@@ -356,6 +364,7 @@ def pack_cmd(
         "on_oversize": on_oversize,
         "redact": redact,
         "drop_line_containing": _parse_repeatable_csv(drop_line_containing),
+        "min_line_length": min_line_length,
         "strip_frontmatter": strip_frontmatter,
         "include_sha256": include_sha256,
         "include_toc": include_toc,
@@ -408,6 +417,14 @@ def pack_cmd(
         console.print(
             "[red]Invalid --redact:"
             f" {values['redact']!r}. Valid choices are: none, emails, phones, all.[/red]\n"
+            "Run 'foldermix pack --help' for full usage information."
+        )
+        raise typer.Exit(code=1)
+
+    if values["min_line_length"] < 0:
+        console.print(
+            "[red]Invalid --min-line-length:"
+            f" {values['min_line_length']!r}. Value must be a non-negative integer.[/red]\n"
             "Run 'foldermix pack --help' for full usage information."
         )
         raise typer.Exit(code=1)

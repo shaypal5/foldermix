@@ -134,6 +134,16 @@ def test_drop_lines_containing_ignores_empty_filters_and_no_match() -> None:
     assert utils.drop_lines_containing(text, ["not present"]) == text
 
 
+def test_drop_lines_shorter_than_with_zero_threshold_keeps_all_lines() -> None:
+    text = "a\nabcd\n\n"
+    assert utils.drop_lines_shorter_than(text, 0) == text
+
+
+def test_drop_lines_shorter_than_drops_short_lines() -> None:
+    text = "a\nabcd\nabcde\r\n"
+    assert utils.drop_lines_shorter_than(text, 5) == "abcde\r\n"
+
+
 def test_strip_yaml_frontmatter_only_at_start() -> None:
     text = "---\ntitle: test\n---\nbody\n"
     assert utils.strip_yaml_frontmatter(text) == "body\n"

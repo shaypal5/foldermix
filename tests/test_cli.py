@@ -63,6 +63,13 @@ def test_pack_rejects_invalid_redact(tmp_path: Path) -> None:
     assert "--help" in result.output
 
 
+def test_pack_rejects_negative_min_line_length(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["pack", str(tmp_path), "--min-line-length", "-1"])
+    assert result.exit_code == 1
+    assert "Invalid --min-line-length" in result.output
+    assert "non-negative integer" in result.output
+
+
 def test_pack_rejects_invalid_policy_fail_level(tmp_path: Path) -> None:
     result = runner.invoke(app, ["pack", str(tmp_path), "--policy-fail-level", "blocker"])
     assert result.exit_code == 1
@@ -127,6 +134,8 @@ def test_pack_builds_config_and_calls_packer(monkeypatch, tmp_path: Path) -> Non
             "generated marker,telemetry noise",
             "--drop-line-containing",
             "multi word phrase",
+            "--min-line-length",
+            "8",
             "--no-include-sha256",
             "--no-include-toc",
             "--pdf-ocr",
@@ -154,6 +163,7 @@ def test_pack_builds_config_and_calls_packer(monkeypatch, tmp_path: Path) -> Non
         "telemetry noise",
         "multi word phrase",
     ]
+    assert config.min_line_length == 8
     assert config.include_sha256 is False
     assert config.include_toc is False
     assert config.pdf_ocr is True
@@ -182,6 +192,7 @@ def test_pack_loads_values_from_config_file(monkeypatch, tmp_path: Path) -> None
                 "include_sha256 = false",
                 "pdf_ocr = true",
                 'drop_line_containing = ["generated marker", "trace id: "]',
+                "min_line_length = 6",
                 'policy_pack = "legal-hold"',
                 "fail_on_policy_violation = true",
                 'policy_fail_level = "critical"',
@@ -208,6 +219,7 @@ def test_pack_loads_values_from_config_file(monkeypatch, tmp_path: Path) -> None
     assert config.include_sha256 is False
     assert config.pdf_ocr is True
     assert config.drop_line_containing == ["generated marker", "trace id: "]
+    assert config.min_line_length == 6
     assert config.policy_pack == "legal-hold"
     assert config.fail_on_policy_violation is True
     assert config.policy_fail_level == "critical"

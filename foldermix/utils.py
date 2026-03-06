@@ -92,5 +92,13 @@ def drop_lines_containing(text: str, filters: list[str]) -> str:
     )
 
 
+def drop_lines_shorter_than(text: str, min_length: int) -> str:
+    if min_length <= 0:
+        return text
+    return "".join(
+        line for line in text.splitlines(keepends=True) if len(line.rstrip("\r\n")) >= min_length
+    )
+
+
 def strip_yaml_frontmatter(text: str) -> str:
     return re.sub(r"^---\s*\n.*?\n---\s*\n", "", text, count=1, flags=re.DOTALL)
