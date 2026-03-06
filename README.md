@@ -75,7 +75,7 @@ foldermix version
 - **Optional converters**: PDF (pypdf), OCR-enhanced PDF fallback (rapidocr + pypdfium2), Office docs (python-docx, openpyxl, python-pptx), markitdown
 - **Redaction**: Email and phone number redaction via `--redact`
 - **Line-level filtering**: Remove noisy lines via `--drop-line-containing`
-- **Minimum line threshold**: Drop short lines via `--min-line-length`
+- **Minimum line length**: Drop short lines via `--min-line-length`
 - **SHA-256 checksums** per file
 - **Parallel processing** with configurable workers
 - **Table of contents** in Markdown output

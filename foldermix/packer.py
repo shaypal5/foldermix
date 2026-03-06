@@ -343,8 +343,7 @@ def _convert_record(
             if config.drop_line_containing:
                 content = drop_lines_containing(content, config.drop_line_containing)
 
-            if config.min_line_length > 0:
-                content = drop_lines_shorter_than(content, config.min_line_length)
+            content = drop_lines_shorter_than(content, config.min_line_length)
 
             if config.redact != "none":
                 from .utils import apply_redaction_with_trace
