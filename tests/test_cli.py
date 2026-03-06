@@ -613,6 +613,88 @@ def test_skiplist_conversion_check_uses_real_converter_registry(tmp_path: Path) 
     assert "supported converter." in result.output
 
 
+def test_skiplist_rejects_invalid_on_oversize(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["skiplist", str(tmp_path), "--on-oversize", "bad"])
+
+    assert result.exit_code == 1
+    assert "Invalid --on-oversize" in result.output
+    assert "skip, truncate" in result.output
+
+
+def test_skiplist_reports_glob_excluded_files_from_pack_config(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'exclude_glob = ["*.tmp"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "keep.txt").write_text("ok", encoding="utf-8")
+    (tmp_path / "skip.tmp").write_text("skip", encoding="utf-8")
+
+    result = runner.invoke(app, ["skiplist", str(tmp_path), "--config", str(config_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "skip.tmp" in result.output
+    assert "SKIP_EXCLUDED_GLOB" in result.output
+    assert "keep.txt" not in result.output
+
+
+def test_skiplist_honors_include_glob_override_from_pack_config(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'exclude_glob = ["*.txt"]',
+                'include_glob = ["keep.txt"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "keep.txt").write_text("keep", encoding="utf-8")
+    (tmp_path / "skip.txt").write_text("skip", encoding="utf-8")
+
+    result = runner.invoke(app, ["skiplist", str(tmp_path), "--config", str(config_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "skip.txt" in result.output
+    assert "SKIP_EXCLUDED_GLOB" in result.output
+    assert "keep.txt" not in result.output
+
+
+def test_skiplist_honors_exclude_dirs_from_pack_config(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[pack]",
+                'exclude_dirs = ["blocked"]',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    blocked = tmp_path / "blocked" / "note.txt"
+    blocked.parent.mkdir()
+    blocked.write_text("blocked", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        ["skiplist", str(tmp_path), "--config", str(config_path), "--stdin"],
+        input=f"{blocked}\n",
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "blocked/note.txt" in result.output
+    assert "SKIP_EXCLUDED_DIR" in result.output
+
+
 def test_preview_renders_selected_file_markdown_by_default(tmp_path: Path) -> None:
     (tmp_path / "note.md").write_text("# Note\n", encoding="utf-8")
 
@@ -944,7 +1026,7 @@ def test_skiplist_reports_invalid_config(tmp_path: Path) -> None:
     config_path.write_text(
         "\n".join(
             [
-                "[list]",
+                "[pack]",
                 'hidden = "yes"',
                 "",
             ]
@@ -971,9 +1053,12 @@ def test_skiplist_print_effective_config_outputs_sources_and_exits(
     config_path.write_text(
         "\n".join(
             [
-                "[list]",
+                "[pack]",
                 "hidden = true",
                 'include_ext = [".py"]',
+                'exclude_glob = ["*.tmp"]',
+                'format = "xml"',
+                'out = "ignored.md"',
                 "",
             ]
         ),
@@ -1002,6 +1087,10 @@ def test_skiplist_print_effective_config_outputs_sources_and_exits(
     assert effective["include_ext"]["source"] == "cli"
     assert effective["hidden"]["value"] is True
     assert effective["hidden"]["source"] == "config"
+    assert effective["exclude_glob"]["value"] == ["*.tmp"]
+    assert effective["exclude_glob"]["source"] == "config"
+    assert "format" not in effective
+    assert "out" not in effective
 
 
 def test_stats_prints_summary_and_extensions(tmp_path: Path) -> None:
@@ -1098,6 +1187,12 @@ def test_skiplist_help_all_options_documented() -> None:
     output = _strip_ansi(result.output)
     assert "--include-ext" in output
     assert "--exclude-ext" in output
+    assert "--exclude-dirs" in output
+    assert "--exclude-glob" in output
+    assert "--include-glob" in output
+    assert "--max-bytes" in output
+    assert "--follow-symlinks" in output
+    assert "--on-oversize" in output
     assert "hidden" in output
     assert "gitignore" in output
     assert "--conversion-check" in output

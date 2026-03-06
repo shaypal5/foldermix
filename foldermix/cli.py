@@ -90,6 +90,20 @@ _LIST_PARAM_BY_KEY = {
     "respect_gitignore": "respect_gitignore",
 }
 
+_SKIPLIST_PARAM_BY_KEY = {
+    "root": "path",
+    "include_ext": "include_ext",
+    "exclude_ext": "exclude_ext",
+    "exclude_dirs": "exclude_dirs",
+    "exclude_glob": "exclude_glob",
+    "include_glob": "include_glob",
+    "max_bytes": "max_bytes",
+    "hidden": "hidden",
+    "follow_symlinks": "follow_symlinks",
+    "respect_gitignore": "respect_gitignore",
+    "on_oversize": "on_oversize",
+}
+
 _STATS_PARAM_BY_KEY = {
     "root": "path",
     "include_ext": "include_ext",
@@ -759,13 +773,41 @@ def skiplist_cmd(
     exclude_ext: str | None = typer.Option(
         None, "--exclude-ext", help="Comma-separated file extensions to exclude (e.g. '.png,.zip')"
     ),
+    exclude_dirs: str | None = typer.Option(
+        None,
+        "--exclude-dirs",
+        help="Comma-separated directory names to exclude (e.g. 'node_modules,dist')",
+    ),
+    exclude_glob: list[str] | None = typer.Option(
+        None,
+        "--exclude-glob",
+        help="Glob pattern(s) to exclude (e.g. '**/*.min.js'). May be repeated.",
+    ),
+    include_glob: list[str] | None = typer.Option(
+        None,
+        "--include-glob",
+        help="Glob pattern(s) to include (e.g. 'src/**/*.py'). May be repeated.",
+    ),
+    max_bytes: int = typer.Option(
+        10_000_000,
+        "--max-bytes",
+        help="Maximum size in bytes (10 MB) for a single file [default: 10_000_000]",
+    ),
     hidden: bool = typer.Option(
         False, "--hidden", help="Include hidden files and directories (names starting with '.')"
+    ),
+    follow_symlinks: bool = typer.Option(
+        False, "--follow-symlinks", help="Follow symbolic links when scanning the directory tree"
     ),
     respect_gitignore: bool = typer.Option(
         True,
         "--respect-gitignore/--no-respect-gitignore",
         help="Skip files listed in .gitignore [default: respect]",
+    ),
+    on_oversize: str = typer.Option(
+        "skip",
+        "--on-oversize",
+        help="What to do when a file exceeds --max-bytes: skip, truncate [default: skip]",
     ),
     conversion_check: bool = typer.Option(
         False,
@@ -813,26 +855,40 @@ def skiplist_cmd(
         "root": path,
         "include_ext": _parse_csv(include_ext),
         "exclude_ext": _parse_csv(exclude_ext) or list(DEFAULT_EXCLUDE_EXT),
+        "exclude_dirs": _parse_csv(exclude_dirs) or list(DEFAULT_EXCLUDE_DIRS),
+        "exclude_glob": exclude_glob or [],
+        "include_glob": include_glob or [],
+        "max_bytes": max_bytes,
         "hidden": hidden,
+        "follow_symlinks": follow_symlinks,
         "respect_gitignore": respect_gitignore,
+        "on_oversize": on_oversize,
     }
     try:
         overrides, used_config_path = load_command_config(
-            "list", root=path, config_path=config_path
+            "pack", root=path, config_path=config_path
         )
     except ConfigLoadError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from exc
+    overrides = {key: value for key, value in overrides.items() if key in values}
     merged = merge_config_layers(
         ctx,
         defaults=values,
         config_overrides=overrides,
-        key_to_param_name=_LIST_PARAM_BY_KEY,
+        key_to_param_name=_SKIPLIST_PARAM_BY_KEY,
     )
     if print_effective_config:
         _print_effective_config("skiplist", merged, used_config_path)
         return
     values = merged.values
+    if values["on_oversize"] not in ("skip", "truncate"):
+        console.print(
+            "[red]Invalid --on-oversize:"
+            f" {values['on_oversize']!r}. Valid choices are: skip, truncate.[/red]\n"
+            "Run 'foldermix skiplist --help' for full usage information."
+        )
+        raise typer.Exit(code=1)
     stdin_paths = _read_stdin_paths(stdin, null_delimited)
 
     pack_config = PackConfig(
@@ -840,8 +896,14 @@ def skiplist_cmd(
         stdin_paths=stdin_paths,
         include_ext=values["include_ext"],  # type: ignore[arg-type]
         exclude_ext=values["exclude_ext"],  # type: ignore[arg-type]
+        exclude_dirs=values["exclude_dirs"],  # type: ignore[arg-type]
+        exclude_glob=values["exclude_glob"],  # type: ignore[arg-type]
+        include_glob=values["include_glob"],  # type: ignore[arg-type]
+        max_bytes=values["max_bytes"],  # type: ignore[arg-type]
         hidden=values["hidden"],  # type: ignore[arg-type]
+        follow_symlinks=values["follow_symlinks"],  # type: ignore[arg-type]
         respect_gitignore=values["respect_gitignore"],  # type: ignore[arg-type]
+        on_oversize=values["on_oversize"],  # type: ignore[arg-type]
     )
     included, skipped = scan(pack_config)
     skip_entries, converter_missing_count = _build_skiplist_entries(
