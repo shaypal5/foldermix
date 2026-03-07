@@ -223,6 +223,31 @@ def _write_report_if_requested(
     console.print(f"Report written to {config.report}")
 
 
+def _dedupe_included_records_by_content(
+    records: list[FileRecord],
+) -> tuple[list[FileRecord], list[SkipRecord]]:
+    deduped: list[FileRecord] = []
+    duplicate_skips: list[SkipRecord] = []
+    seen_hashes: set[str] = set()
+
+    for record in records:
+        try:
+            digest = sha256_file(record.path)
+        except OSError:
+            deduped.append(record)
+            continue
+
+        record.sha256 = digest
+        if digest in seen_hashes:
+            duplicate_skips.append(SkipRecord(record.relpath, "duplicate_content"))
+            continue
+
+        seen_hashes.add(digest)
+        deduped.append(record)
+
+    return deduped, duplicate_skips
+
+
 def _enforce_policy_threshold_if_requested(
     *,
     enabled: bool,
@@ -360,10 +385,12 @@ def _convert_record(
 
     sha256: str | None = None
     if config.include_sha256:
-        try:
-            sha256 = sha256_file(record.path)
-        except OSError:
-            pass
+        sha256 = record.sha256
+        if sha256 is None:
+            try:
+                sha256 = sha256_file(record.path)
+            except OSError:
+                pass
 
     return FileBundleItem(
         relpath=record.relpath,
@@ -442,6 +469,14 @@ def pack(config: PackConfig) -> None:
 
     console.print(f"[bold]Scanning[/bold] {config.root} ...")
     included, skipped = scan(config)
+
+    if config.dedupe_content:
+        included, duplicate_skips = _dedupe_included_records_by_content(included)
+        skipped.extend(duplicate_skips)
+        if duplicate_skips:
+            console.print(
+                f"[yellow]Skipped duplicate-content files:[/yellow] {len(duplicate_skips)}"
+            )
 
     console.print(
         f"Found [green]{len(included)}[/green] files, [yellow]{len(skipped)}[/yellow] skipped"

@@ -72,6 +72,10 @@ SKIP_REASONS: dict[str, SkipReasonInfo] = {
         code="SKIP_UNSUPPORTED_EXTENSION",
         message="Path has no available converter for its extension.",
     ),
+    "duplicate_content": SkipReasonInfo(
+        code="SKIP_DUPLICATE_CONTENT",
+        message="Path content duplicates an earlier included file.",
+    ),
 }
 
 # Kept as derived mappings for compatibility with existing internal/tests usage.

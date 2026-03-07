@@ -72,6 +72,7 @@ _PACK_PARAM_BY_KEY = {
     "strip_frontmatter": "strip_frontmatter",
     "include_sha256": "include_sha256",
     "include_toc": "include_toc",
+    "dedupe_content": "dedupe_content",
     "pdf_ocr": "pdf_ocr",
     "pdf_ocr_strict": "pdf_ocr_strict",
     "policy_pack": "policy_pack",
@@ -380,6 +381,11 @@ def pack_cmd(
         "--include-toc/--no-include-toc",
         help="Prepend a table of contents to Markdown output [default: include]",
     ),
+    dedupe_content: bool = typer.Option(
+        False,
+        "--dedupe-content/--no-dedupe-content",
+        help="Skip later files whose content SHA-256 matches an earlier included file [default: disabled]",
+    ),
     pdf_ocr: bool = typer.Option(
         False,
         "--pdf-ocr/--no-pdf-ocr",
@@ -490,6 +496,7 @@ def pack_cmd(
         "strip_frontmatter": strip_frontmatter,
         "include_sha256": include_sha256,
         "include_toc": include_toc,
+        "dedupe_content": dedupe_content,
         "pdf_ocr": pdf_ocr,
         "pdf_ocr_strict": pdf_ocr_strict,
         "policy_pack": policy_pack,
@@ -1145,6 +1152,7 @@ def preview_cmd(
         "strip_frontmatter": strip_frontmatter,
         "include_sha256": include_sha256,
         "include_toc": include_toc,
+        "dedupe_content": False,
         "pdf_ocr": pdf_ocr,
         "pdf_ocr_strict": pdf_ocr_strict,
     }
@@ -1238,6 +1246,7 @@ def preview_cmd(
         strip_frontmatter=values["strip_frontmatter"],  # type: ignore[arg-type]
         include_sha256=values["include_sha256"],  # type: ignore[arg-type]
         include_toc=values["include_toc"],  # type: ignore[arg-type]
+        dedupe_content=values["dedupe_content"],  # type: ignore[arg-type]
         pdf_ocr=values["pdf_ocr"],  # type: ignore[arg-type]
         pdf_ocr_strict=values["pdf_ocr_strict"],  # type: ignore[arg-type]
         stdin_paths=explicit_paths,

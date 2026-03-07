@@ -150,3 +150,4 @@ class PackConfig:
     policy_fail_level: Literal["low", "medium", "high", "critical"] = "low"
     policy_dry_run: bool = False
     policy_output: Literal["text", "json"] = "text"
+    dedupe_content: bool = False

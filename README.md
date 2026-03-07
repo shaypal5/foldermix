@@ -115,6 +115,7 @@ foldermix version
 - **Sensitive file protection**: Automatically skips `.env`, keys, certificates
 - **Optional converters**: PDF (pypdf), OCR-enhanced PDF fallback (rapidocr + pypdfium2), Office docs (python-docx, openpyxl, python-pptx), markitdown
 - **Spreadsheet noise reduction**: XLSX fallback skips low-signal `Copy of ...` tabs by default
+- **Optional duplicate suppression**: skip later files whose content exactly matches an earlier included file
 - **Redaction**: Email and phone number redaction via `--redact`
 - **Line-level filtering**: Remove noisy lines via `--drop-line-containing`
 - **Minimum line length**: Drop short lines via `--min-line-length`
@@ -203,6 +204,14 @@ The `course-refresh` profile keeps teaching-material formats broad (`pdf`, `docx
 - submissions
 - student-specific folders/files
 
+### Corpus Cleanup With Duplicate Suppression
+
+```bash
+foldermix pack ./corpus --format md --out deduped-context.md --report dedupe-report.json --dedupe-content
+```
+
+`--dedupe-content` keeps the first file for each content SHA-256 and skips later duplicates. When combined with `--report`, duplicate skips are surfaced with `SKIP_DUPLICATE_CONTENT` so you can prune the source tree if needed.
+
 For a longer config-first walkthrough, see [docs/config-first-workflows.md](docs/config-first-workflows.md).
 For policy-focused operational guidance, see [docs/compliance-safety.md](docs/compliance-safety.md).
 
@@ -238,6 +247,7 @@ Options:
   --strip-frontmatter           Strip YAML frontmatter from files
   --include-sha256 / --no-include-sha256  [default: include]
   --include-toc / --no-include-toc        [default: include]
+  --dedupe-content / --no-dedupe-content  Skip later files whose content exactly matches an earlier included file [default: disabled]
   --pdf-ocr / --no-pdf-ocr                Enable OCR fallback for textless PDF pages [default: disabled]
   --pdf-ocr-strict / --no-pdf-ocr-strict  Fail when OCR is needed but unavailable/empty [default: disabled]
   --fail-on-policy-violation / --no-fail-on-policy-violation  Fail command when policy findings meet threshold [default: disabled]

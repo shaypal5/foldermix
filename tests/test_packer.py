@@ -375,6 +375,97 @@ def test_pack_writes_report_json(tmp_path: Path) -> None:
     }
 
 
+def test_pack_dedupe_content_skips_later_duplicate_files_and_reports_them(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_text("same\n", encoding="utf-8")
+    (tmp_path / "copy.txt").write_text("same\n", encoding="utf-8")
+    (tmp_path / "other.txt").write_text("different\n", encoding="utf-8")
+    out_path = tmp_path / "out.jsonl"
+    report_path = tmp_path / "report.json"
+    config = PackConfig(
+        root=tmp_path,
+        out=out_path,
+        format="jsonl",
+        report=report_path,
+        workers=1,
+        include_sha256=False,
+        dedupe_content=True,
+    )
+
+    packer.pack(config)
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["included_count"] == 2
+    assert sorted(entry["path"] for entry in report["included_files"]) == ["a.txt", "other.txt"]
+    assert report["skipped_files"] == [
+        {
+            "path": "copy.txt",
+            "reason": "duplicate_content",
+            "reason_code": "SKIP_DUPLICATE_CONTENT",
+            "message": "Path content duplicates an earlier included file.",
+        }
+    ]
+    assert report["reason_code_counts"] == {"SKIP_DUPLICATE_CONTENT": 1}
+
+
+def test_pack_dedupe_content_keeps_all_files_when_no_duplicates_exist(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_text("one\n", encoding="utf-8")
+    (tmp_path / "b.txt").write_text("two\n", encoding="utf-8")
+    out_path = tmp_path / "out.jsonl"
+    report_path = tmp_path / "report.json"
+    config = PackConfig(
+        root=tmp_path,
+        out=out_path,
+        format="jsonl",
+        report=report_path,
+        workers=1,
+        include_sha256=False,
+        dedupe_content=True,
+    )
+
+    packer.pack(config)
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["included_count"] == 2
+    assert report["skipped_files"] == []
+    assert report["reason_code_counts"] == {}
+
+
+def test_dedupe_content_keeps_files_when_hashing_fails(tmp_path: Path, monkeypatch) -> None:
+    a_path = tmp_path / "a.txt"
+    b_path = tmp_path / "b.txt"
+    _write(a_path, "same\n")
+    _write(b_path, "same\n")
+    records = [_record(a_path), _record(b_path)]
+
+    def flaky_sha256(path: Path) -> str:
+        if path.name == "b.txt":
+            raise OSError("boom")
+        return "same-hash"
+
+    monkeypatch.setattr(packer, "sha256_file", flaky_sha256)
+
+    deduped, skipped = packer._dedupe_included_records_by_content(records)
+
+    assert [record.relpath for record in deduped] == ["a.txt", "b.txt"]
+    assert skipped == []
+    assert records[0].sha256 == "same-hash"
+    assert records[1].sha256 is None
+
+
+def test_convert_record_reuses_precomputed_sha256(tmp_path: Path, monkeypatch) -> None:
+    path = tmp_path / "a.txt"
+    _write(path, "hello\n")
+    record = _record(path)
+    record.sha256 = "precomputed"
+    monkeypatch.setattr(
+        packer, "sha256_file", lambda _path: (_ for _ in ()).throw(AssertionError("unused"))
+    )
+
+    item = packer._convert_record(record, packer._build_registry(), PackConfig(root=tmp_path))
+
+    assert item.sha256 == "precomputed"
+
+
 def test_pack_report_includes_structured_outcomes(tmp_path: Path) -> None:
     # Write bytes directly so truncation/redaction counts are stable on LF/CRLF platforms.
     (tmp_path / "big.txt").write_bytes(b"Contact foo@example.com.\n" * 32)

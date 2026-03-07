@@ -121,6 +121,14 @@ Default exclusions in the `course-refresh` profile target common course-admin no
 - submissions
 - student-specific folders/files
 
+### Corpus Cleanup With Duplicate Suppression
+
+```bash
+foldermix pack ./corpus --format md --out deduped-context.md --report dedupe-report.json --dedupe-content
+```
+
+This mode keeps the first file for each content SHA-256 and skips later exact duplicates. The report records these skips with `SKIP_DUPLICATE_CONTENT` so you can identify duplicate source paths after the run.
+
 ## Troubleshooting
 
 - `--null` fails:

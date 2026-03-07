@@ -51,6 +51,13 @@ def test_build_skipped_file_entry_supports_conversion_related_reasons() -> None:
     assert "no available converter" in unsupported_ext["message"]
 
 
+def test_build_skipped_file_entry_supports_duplicate_content_reason() -> None:
+    entry = build_skipped_file_entry(path="copy.txt", reason="duplicate_content")
+
+    assert entry["reason_code"] == "SKIP_DUPLICATE_CONTENT"
+    assert "duplicates an earlier included file" in entry["message"]
+
+
 def test_write_report_backfills_reason_code_counts_when_missing(tmp_path: Path) -> None:
     report_path = tmp_path / "report.json"
     data = ReportData(
