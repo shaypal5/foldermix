@@ -2,4 +2,4 @@
 
 name	value
 alpha	1
-beta	
+beta

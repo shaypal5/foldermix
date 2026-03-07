@@ -1,8 +1,34 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 
+from ._normalize import normalize_whitespace_line
 from .base import ConversionResult
+
+
+def _iter_compacted_rows(
+    rows: Iterable[tuple[object, ...]], *, max_blank_lines: int = 1
+) -> Iterator[str]:
+    pending_blank_lines = 0
+    seen_content = False
+
+    for row in rows:
+        cells = [normalize_whitespace_line("" if value is None else str(value)) for value in row]
+        while cells and not cells[-1].strip():
+            cells.pop()
+
+        line = "\t".join(cells)
+        if not line.strip():
+            if seen_content:
+                pending_blank_lines = min(pending_blank_lines + 1, max_blank_lines)
+            continue
+
+        seen_content = True
+        for _ in range(pending_blank_lines):
+            yield ""
+        pending_blank_lines = 0
+        yield line
 
 
 class XlsxFallbackConverter:
@@ -22,11 +48,9 @@ class XlsxFallbackConverter:
         for sheet_name in wb.sheetnames:
             ws = wb[sheet_name]
             parts.append(f"## Sheet: {sheet_name}")
-            rows = []
-            for row in ws.iter_rows(values_only=True):
-                row_str = "\t".join("" if v is None else str(v) for v in row)
-                rows.append(row_str)
-            parts.append("\n".join(rows))
+            body = "\n".join(_iter_compacted_rows(ws.iter_rows(values_only=True)))
+            if body:
+                parts.append(body)
         return ConversionResult(
             content="\n\n".join(parts),
             converter_name="openpyxl",
