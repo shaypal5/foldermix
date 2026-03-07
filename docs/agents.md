@@ -166,7 +166,7 @@ Triggered on every push to `main` and every pull request.
 | `package-smoke` | — | Build wheel → clean-venv install → CLI black-box assertions |
 | `full` | lint, smoke, minimal-deps, package-smoke | Full pytest suite with ≥ 98% branch coverage; uploads to Codecov |
 | `publish-pypi` | full | Version-bump detection; publishes to PyPI via OIDC if bumped |
-| `update-homebrew-tap` | publish-pypi | Renders Homebrew formula and pushes to `shaypal5/homebrew-tap` |
+| `update-homebrew-tap` | publish-pypi | Renders Homebrew formula and pushes to `foldermix/homebrew-foldermix` |
 
 ### `mutation.yml` — Mutation Testing
 

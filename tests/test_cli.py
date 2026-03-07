@@ -1440,4 +1440,4 @@ def test_root_help_lists_all_commands() -> None:
     assert "stats" in result.output
     assert "version" in result.output
     assert "foldermix COMMAND" in result.output
-    assert "github.com/shaypal5/foldermix/blob/main/docs/compliance-safety.md" in result.output
+    assert "github.com/foldermix/foldermix/blob/main/docs/compliance-safety.md" in result.output

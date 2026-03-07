@@ -201,6 +201,7 @@ jobs:
         with:
           files: ./coverage.xml
           fail_ci_if_error: true
+          slug: foldermix/foldermix
           token: ${{ secrets.CODECOV_TOKEN }}
 
   publish-pypi:

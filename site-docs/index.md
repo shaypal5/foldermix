@@ -164,7 +164,7 @@ Publish path:
 ## More Detailed Docs
 
 This site is intentionally concise. For deeper details, use:
-- [README](https://github.com/shaypal5/foldermix/blob/main/README.md)
-- [Config-first workflows](https://github.com/shaypal5/foldermix/blob/main/docs/config-first-workflows.md)
-- [Compliance and safety](https://github.com/shaypal5/foldermix/blob/main/docs/compliance-safety.md)
-- [Contributing](https://github.com/shaypal5/foldermix/blob/main/CONTRIBUTING.md)
+- [README](https://github.com/foldermix/foldermix/blob/main/README.md)
+- [Config-first workflows](https://github.com/foldermix/foldermix/blob/main/docs/config-first-workflows.md)
+- [Compliance and safety](https://github.com/foldermix/foldermix/blob/main/docs/compliance-safety.md)
+- [Contributing](https://github.com/foldermix/foldermix/blob/main/CONTRIBUTING.md)

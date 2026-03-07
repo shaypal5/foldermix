@@ -1,8 +1,8 @@
 site_name: foldermix
 site_description: Concise onboarding and command discovery docs for foldermix
-site_url: https://shaypal5.github.io/foldermix/
-repo_url: https://github.com/shaypal5/foldermix
-repo_name: shaypal5/foldermix
+site_url: https://foldermix.github.io/foldermix/
+repo_url: https://github.com/foldermix/foldermix
+repo_name: foldermix/foldermix
 theme:
   name: readthedocs
 docs_dir: site-docs

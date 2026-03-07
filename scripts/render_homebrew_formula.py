@@ -14,7 +14,7 @@ import urllib.request
 from pathlib import Path
 
 DESCRIPTION = "Pack a folder into a single LLM-friendly context file"
-HOMEPAGE = "https://github.com/shaypal5/foldermix"
+HOMEPAGE = "https://github.com/foldermix/foldermix"
 LICENSE = "MIT"
 HOMEBREW_PYTHON_FORMULA = "python@3.12"
 

@@ -36,8 +36,8 @@ app = typer.Typer(
         "  version – Print the installed foldermix version.\n\n"
         "Run 'foldermix COMMAND --help' for detailed options on any command.\n\n"
         "Guides:\n\n"
-        "  Config-first workflows: https://github.com/shaypal5/foldermix/blob/main/docs/config-first-workflows.md\n\n"
-        "  Compliance & safety:   https://github.com/shaypal5/foldermix/blob/main/docs/compliance-safety.md"
+        "  Config-first workflows: https://github.com/foldermix/foldermix/blob/main/docs/config-first-workflows.md\n\n"
+        "  Compliance & safety:   https://github.com/foldermix/foldermix/blob/main/docs/compliance-safety.md"
     ),
     add_completion=False,
 )
