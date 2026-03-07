@@ -1,9 +1,22 @@
 from __future__ import annotations
 
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
 from .base import ConversionResult
+
+_RTL_RANGES = (
+    ("\u0590", "\u05ff"),  # Hebrew
+    ("\u0600", "\u06ff"),  # Arabic
+    ("\u0750", "\u077f"),  # Arabic Supplement
+    ("\u08a0", "\u08ff"),  # Arabic Extended-A
+)
+_BIDI_CONTROL_CHARS = {
+    ord(ch): None
+    for ch in "\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\ufeff"
+}
 
 
 class PdfFallbackConverter:
@@ -66,6 +79,39 @@ class PdfFallbackConverter:
                             texts.append(text)
         return "\n".join(texts)
 
+    @staticmethod
+    def _contains_rtl_text(text: str) -> bool:
+        return any(start <= char <= end for char in text for start, end in _RTL_RANGES)
+
+    @staticmethod
+    def _clean_poppler_page_text(text: str) -> str:
+        lines = [line.translate(_BIDI_CONTROL_CHARS).rstrip() for line in text.splitlines()]
+        while lines and not lines[0].strip():
+            lines.pop(0)
+        while lines and not lines[-1].strip():
+            lines.pop()
+        return "\n".join(lines)
+
+    @classmethod
+    def _extract_poppler_pages(cls, path: Path) -> list[str] | None:
+        if shutil.which("pdftotext") is None:
+            return None
+
+        try:
+            completed = subprocess.run(
+                ["pdftotext", "-layout", "-enc", "UTF-8", str(path), "-"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except (OSError, subprocess.CalledProcessError):
+            return None
+
+        raw_pages = completed.stdout.split("\f")
+        if raw_pages and not raw_pages[-1].strip():
+            raw_pages.pop()
+        return [cls._clean_poppler_page_text(page) for page in raw_pages]
+
     def _render_pdf_page(
         self, path: Path, page_index: int, pdfium: Any, *, pdf_doc: Any | None = None
     ) -> Any:
@@ -110,6 +156,14 @@ class PdfFallbackConverter:
         from pypdf import PdfReader
 
         reader = PdfReader(str(path))
+        extracted_pages = [(page.extract_text() or "") for page in reader.pages]
+        converter_name = "pypdf"
+        if any(self._contains_rtl_text(text) for text in extracted_pages):
+            poppler_pages = self._extract_poppler_pages(path)
+            if poppler_pages and len(poppler_pages) == len(extracted_pages):
+                extracted_pages = poppler_pages
+                converter_name = "pdftotext"
+
         warnings: list[str] = []
         ocr_used = False
         ocr_unavailable_reason: str | None = None
@@ -126,7 +180,7 @@ class PdfFallbackConverter:
         pages = []
         try:
             for i, page in enumerate(reader.pages):
-                text = page.extract_text() or ""
+                text = extracted_pages[i]
                 page_num = i + 1
                 page_text = text
                 if not text.strip():
@@ -188,7 +242,8 @@ class PdfFallbackConverter:
             if pdf_doc is not None:
                 self._close_if_possible(pdf_doc)
 
-        converter_name = "pypdf+rapidocr" if ocr_used else "pypdf"
+        if ocr_used:
+            converter_name = f"{converter_name}+rapidocr"
         return ConversionResult(
             content="\n\n".join(pages),
             warnings=warnings,

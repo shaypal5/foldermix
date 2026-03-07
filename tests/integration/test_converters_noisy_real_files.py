@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import shutil
 from pathlib import Path
 
 import pytest
@@ -73,15 +74,17 @@ def test_noisy_docx_output_is_sanitized_and_compacted() -> None:
     )
 
 
-@pytest.mark.xfail(reason="Tracked by #99: Hebrew/RTL native PDF extraction is still degraded")
 def test_noisy_pdf_hebrew_rtl_extraction_quality() -> None:
     pytest.importorskip("pypdf")
+    if shutil.which("pdftotext") is None:
+        pytest.skip("pdftotext unavailable in test environment")
     result = PdfFallbackConverter().convert(FIXTURE_DIR / "noisy_syllabus_hebrew.pdf")
 
     assert "Text Mining" in result.content
     assert "דרישות קדם" in result.content
     assert "שי פלצ'י אפק" in result.content
     assert "nop@chau.ac.jl" in result.content
+    assert result.converter_name == "pdftotext"
     assert "Text Mining" in result.content
     assert "דרישות קדם" in result.content
     assert "דרישות קדם" in result.content.split("Text Mining", 1)[1]

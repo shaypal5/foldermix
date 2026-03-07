@@ -232,6 +232,17 @@ def test_markitdown_convert(monkeypatch, tmp_path: Path) -> None:
     assert result.converter_name == "markitdown"
 
 
+def test_pdf_fallback_can_convert_when_installed(monkeypatch) -> None:
+    monkeypatch.setitem(sys.modules, "pypdf", SimpleNamespace(PdfReader=lambda _: None))
+    assert PdfFallbackConverter().can_convert(".pdf") is True
+    assert PdfFallbackConverter().can_convert(".txt") is False
+
+
+def test_pdf_fallback_can_convert_false_when_missing(monkeypatch) -> None:
+    monkeypatch.setitem(sys.modules, "pypdf", None)
+    assert PdfFallbackConverter().can_convert(".pdf") is False
+
+
 def test_pdf_fallback_convert(monkeypatch, tmp_path: Path) -> None:
     path = tmp_path / "f.pdf"
     path.write_text("placeholder", encoding="utf-8")
@@ -253,6 +264,101 @@ def test_pdf_fallback_convert(monkeypatch, tmp_path: Path) -> None:
     assert "### Page 2\nsecond" in result.content
     assert result.converter_name == "pypdf"
     assert result.warnings == []
+
+
+def test_pdf_fallback_prefers_pdftotext_for_rtl_native_text(monkeypatch, tmp_path: Path) -> None:
+    path = tmp_path / "f.pdf"
+    path.write_text("placeholder", encoding="utf-8")
+
+    class _Page:
+        @staticmethod
+        def extract_text() -> str:
+            return "כריית טקסט"
+
+    class _Reader:
+        def __init__(self, _path: str) -> None:
+            self.pages = [_Page()]
+
+    monkeypatch.setitem(sys.modules, "pypdf", SimpleNamespace(PdfReader=_Reader))
+    monkeypatch.setattr(
+        "foldermix.converters.pdf_fallback.shutil.which", lambda exe: "/usr/bin/pdftotext"
+    )
+
+    def _run(*_args, **_kwargs):
+        return SimpleNamespace(stdout="\u202bכריית טקסט\u202c\n\u202bדרישות קדם\u202c\f")
+
+    monkeypatch.setattr("foldermix.converters.pdf_fallback.subprocess.run", _run)
+
+    result = PdfFallbackConverter().convert(path)
+    assert result.content == "### Page 1\nכריית טקסט\nדרישות קדם"
+    assert result.converter_name == "pdftotext"
+    assert result.warnings == []
+
+
+def test_pdf_fallback_clean_poppler_page_text_strips_controls_and_blank_edges() -> None:
+    cleaned = PdfFallbackConverter._clean_poppler_page_text(
+        "\n\u202bכריית טקסט\u202c\n\u2067דרישות קדם\u2069\n\n"
+    )
+    assert cleaned == "כריית טקסט\nדרישות קדם"
+
+
+def test_pdf_fallback_extract_poppler_pages_returns_none_on_subprocess_failure(
+    monkeypatch, tmp_path: Path
+) -> None:
+    path = tmp_path / "f.pdf"
+    path.write_text("placeholder", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "foldermix.converters.pdf_fallback.shutil.which", lambda exe: "/usr/bin/pdftotext"
+    )
+
+    def _run(*_args, **_kwargs):
+        raise OSError("boom")
+
+    monkeypatch.setattr("foldermix.converters.pdf_fallback.subprocess.run", _run)
+
+    assert PdfFallbackConverter._extract_poppler_pages(path) is None
+
+
+def test_pdf_fallback_extract_poppler_pages_keeps_nonempty_last_page(
+    monkeypatch, tmp_path: Path
+) -> None:
+    path = tmp_path / "f.pdf"
+    path.write_text("placeholder", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "foldermix.converters.pdf_fallback.shutil.which", lambda exe: "/usr/bin/pdftotext"
+    )
+
+    def _run(*_args, **_kwargs):
+        return SimpleNamespace(stdout="\u202bכריית טקסט\u202c\fText Mining")
+
+    monkeypatch.setattr("foldermix.converters.pdf_fallback.subprocess.run", _run)
+
+    assert PdfFallbackConverter._extract_poppler_pages(path) == ["כריית טקסט", "Text Mining"]
+
+
+def test_pdf_fallback_rtl_native_text_falls_back_to_pypdf_when_poppler_unavailable(
+    monkeypatch, tmp_path: Path
+) -> None:
+    path = tmp_path / "f.pdf"
+    path.write_text("placeholder", encoding="utf-8")
+
+    class _Page:
+        @staticmethod
+        def extract_text() -> str:
+            return "כריית טקסט"
+
+    class _Reader:
+        def __init__(self, _path: str) -> None:
+            self.pages = [_Page()]
+
+    monkeypatch.setitem(sys.modules, "pypdf", SimpleNamespace(PdfReader=_Reader))
+    monkeypatch.setattr("foldermix.converters.pdf_fallback.shutil.which", lambda exe: None)
+
+    result = PdfFallbackConverter().convert(path)
+    assert result.content == "### Page 1\nכריית טקסט"
+    assert result.converter_name == "pypdf"
 
 
 def test_pdf_fallback_enable_ocr_does_not_initialize_engine_when_all_pages_have_text(
