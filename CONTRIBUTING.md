@@ -9,7 +9,7 @@ For maintainer-oriented PR/release/tap runbooks, see [docs/maintainer-playbook.m
 pip install uv
 uv venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
-uv pip install -e ".[dev,all]"
+uv pip install -e ".[dev,docs,all]"
 ```
 
 ## Lint
@@ -18,6 +18,21 @@ uv pip install -e ".[dev,all]"
 ruff check .
 ruff format .
 ```
+
+## Docs Site
+
+The docs site is built with MkDocs and published by `.github/workflows/docs-site.yml`.
+
+```bash
+pip install -e ".[docs]"
+mkdocs serve
+mkdocs build --strict
+```
+
+Publish behavior:
+
+1. Pull requests touching docs-related files run a docs build check.
+2. Pushes to `main` deploy the built site to GitHub Pages.
 
 ## Test
 

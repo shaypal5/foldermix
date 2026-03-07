@@ -4,6 +4,8 @@
 
 [![CI](https://github.com/shaypal5/foldermix/actions/workflows/ci.yml/badge.svg)](https://github.com/shaypal5/foldermix/actions/workflows/ci.yml)
 
+Docs site: [shaypal5.github.io/foldermix](https://shaypal5.github.io/foldermix/)
+
 ## Installation
 
 ```bash
