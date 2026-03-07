@@ -61,6 +61,22 @@ Install-method summary:
 | `pipx install "foldermix[all,markitdown]"` | Full optional converter support | Isolated global CLI (pipx workflow) |
 | `pip install "foldermix[all,markitdown]"` in venv | Full optional converter support | Project-scoped environments |
 
+## Super Quick Start
+
+If you just want a single context file right now, run:
+
+```bash
+foldermix pack . --out context.md
+```
+
+This writes one Markdown bundle at `./context.md` from the current folder, with no `foldermix.toml` required.
+
+Default behavior:
+- output format is Markdown (`md`) unless you pass `--format`
+- if you omit `--out`, `foldermix` writes a timestamped Markdown file such as `foldermix_20260307_120000.md`
+
+For config-first and workflow-oriented usage, continue with the full Quick Start below or jump to the [command reference](#command-reference).
+
 ## Quick Start (Config-First)
 
 `foldermix` is designed around a checked-in (or local) `foldermix.toml`, then command-level overrides only when needed.
