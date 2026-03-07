@@ -1,0 +1,25 @@
+# foldermix starter configuration
+# profile: course-refresh
+# intent: High-signal teaching-material profile for refreshing a course offering.
+# rationale: Course refresh bundles should focus on syllabus, slides, assignments, notebooks, and other teaching artifacts while excluding grades, rosters, responses, feedback, and other student/admin material that adds noise or privacy risk.
+
+# Pack defaults for this profile.
+[pack]
+include_ext = [".txt", ".md", ".rst", ".pdf", ".docx", ".pptx", ".ipynb", ".xlsx", ".csv", ".tsv", ".json", ".yaml", ".yml"]
+hidden = false
+respect_gitignore = true
+on_oversize = "truncate"
+continue_on_error = true
+redact = "none"
+strip_frontmatter = false
+include_sha256 = true
+include_toc = true
+pdf_ocr = true
+pdf_ocr_strict = false
+exclude_dirs = ["Feedbacks", "feedbacks", "Responses", "responses", "Grades", "grades", "Rosters", "rosters", "Students", "students", "Submissions", "submissions"]
+exclude_glob = ["*[Gg]rade*", "*[Rr]oster*", "*[Rr]esponse*", "*[Ff]eedback*", "*[Ss]ubmission*", "*[Ss]tudent*"]
+
+# Stats defaults for this profile.
+[stats]
+include_ext = [".txt", ".md", ".rst", ".pdf", ".docx", ".pptx", ".ipynb", ".xlsx", ".csv", ".tsv", ".json", ".yaml", ".yml"]
+hidden = false

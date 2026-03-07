@@ -24,30 +24,40 @@ def _build_profile(
     strip_frontmatter: bool,
     pdf_ocr: bool,
     pdf_ocr_strict: bool,
+    extra_pack_values: dict[str, object] | None = None,
+    extra_stats_values: dict[str, object] | None = None,
 ) -> InitProfile:
     # Keep include-ext source-of-truth per profile while writing pack/stats TOML sections.
     ext_values = list(include_ext)
+    pack_values: dict[str, object] = {
+        "include_ext": list(ext_values),
+        "hidden": False,
+        "respect_gitignore": True,
+        "on_oversize": on_oversize,
+        "continue_on_error": continue_on_error,
+        "redact": redact,
+        "strip_frontmatter": strip_frontmatter,
+        "include_sha256": True,
+        "include_toc": True,
+        "pdf_ocr": pdf_ocr,
+        "pdf_ocr_strict": pdf_ocr_strict,
+    }
+    if extra_pack_values:
+        pack_values.update(extra_pack_values)
+
+    stats_values: dict[str, object] = {
+        "include_ext": list(ext_values),
+        "hidden": False,
+    }
+    if extra_stats_values:
+        stats_values.update(extra_stats_values)
+
     return InitProfile(
         slug=slug,
         summary=summary,
         rationale=rationale,
-        pack_values={
-            "include_ext": list(ext_values),
-            "hidden": False,
-            "respect_gitignore": True,
-            "on_oversize": on_oversize,
-            "continue_on_error": continue_on_error,
-            "redact": redact,
-            "strip_frontmatter": strip_frontmatter,
-            "include_sha256": True,
-            "include_toc": True,
-            "pdf_ocr": pdf_ocr,
-            "pdf_ocr_strict": pdf_ocr_strict,
-        },
-        stats_values={
-            "include_ext": list(ext_values),
-            "hidden": False,
-        },
+        pack_values=pack_values,
+        stats_values=stats_values,
     )
 
 
@@ -77,6 +87,21 @@ _ENGINEERING_DOCS_EXT = [
     ".yaml",
     ".yml",
     ".toml",
+]
+_COURSE_REFRESH_EXT = [
+    ".txt",
+    ".md",
+    ".rst",
+    ".pdf",
+    ".docx",
+    ".pptx",
+    ".ipynb",
+    ".xlsx",
+    ".csv",
+    ".tsv",
+    ".json",
+    ".yaml",
+    ".yml",
 ]
 
 _PROFILES: dict[str, InitProfile] = {
@@ -139,6 +164,46 @@ _PROFILES: dict[str, InitProfile] = {
         strip_frontmatter=True,
         pdf_ocr=False,
         pdf_ocr_strict=False,
+    ),
+    "course-refresh": _build_profile(
+        slug="course-refresh",
+        summary="High-signal teaching-material profile for refreshing a course offering.",
+        rationale=(
+            "Course refresh bundles should focus on syllabus, slides, assignments, notebooks, and "
+            "other teaching artifacts while excluding grades, rosters, responses, feedback, and "
+            "other student/admin material that adds noise or privacy risk."
+        ),
+        include_ext=_COURSE_REFRESH_EXT,
+        on_oversize="truncate",
+        continue_on_error=True,
+        redact="none",
+        strip_frontmatter=False,
+        pdf_ocr=True,
+        pdf_ocr_strict=False,
+        extra_pack_values={
+            "exclude_dirs": [
+                "Feedbacks",
+                "feedbacks",
+                "Responses",
+                "responses",
+                "Grades",
+                "grades",
+                "Rosters",
+                "rosters",
+                "Students",
+                "students",
+                "Submissions",
+                "submissions",
+            ],
+            "exclude_glob": [
+                "*[Gg]rade*",
+                "*[Rr]oster*",
+                "*[Rr]esponse*",
+                "*[Ff]eedback*",
+                "*[Ss]ubmission*",
+                "*[Ss]tudent*",
+            ],
+        },
     ),
 }
 

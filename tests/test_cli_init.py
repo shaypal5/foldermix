@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shlex
+from fnmatch import fnmatch
 from pathlib import Path
 
 import pytest
@@ -29,7 +30,7 @@ def test_init_help_lists_available_profiles() -> None:
 
 @pytest.mark.parametrize(
     "profile",
-    ["legal", "research", "support", "engineering-docs"],
+    ["legal", "research", "support", "engineering-docs", "course-refresh"],
 )
 def test_init_writes_expected_profile_template(tmp_path: Path, profile: str) -> None:
     output_path = tmp_path / "foldermix.toml"
@@ -63,6 +64,7 @@ def test_init_rejects_invalid_profile(tmp_path: Path) -> None:
     assert "research" in result.output
     assert "support" in result.output
     assert "engineering-docs" in result.output
+    assert "course-refresh" in result.output
     assert not output_path.exists()
 
 
@@ -133,6 +135,7 @@ def test_init_reports_write_failure(monkeypatch, tmp_path: Path) -> None:
         ("research", "emails"),
         ("support", "all"),
         ("engineering-docs", "none"),
+        ("course-refresh", "none"),
     ],
 )
 def test_init_generated_config_runs_with_pack(
@@ -164,3 +167,39 @@ def test_init_generated_config_runs_with_pack(
 
     config = captured["config"]
     assert config.redact == expected_redact
+
+
+def test_course_refresh_profile_sets_exclusion_defaults(tmp_path: Path) -> None:
+    output_path = tmp_path / "foldermix.toml"
+    result = runner.invoke(
+        app,
+        ["init", "--profile", "course-refresh", "--out", str(output_path)],
+    )
+
+    assert result.exit_code == 0, result.output
+    parsed = tomllib.loads(output_path.read_text(encoding="utf-8"))
+    assert parsed["pack"]["exclude_dirs"] == [
+        "Feedbacks",
+        "feedbacks",
+        "Responses",
+        "responses",
+        "Grades",
+        "grades",
+        "Rosters",
+        "rosters",
+        "Students",
+        "students",
+        "Submissions",
+        "submissions",
+    ]
+    assert parsed["pack"]["exclude_glob"] == [
+        "*[Gg]rade*",
+        "*[Rr]oster*",
+        "*[Rr]esponse*",
+        "*[Ff]eedback*",
+        "*[Ss]ubmission*",
+        "*[Ss]tudent*",
+    ]
+    patterns = parsed["pack"]["exclude_glob"]
+    assert any(fnmatch("Grades.xlsx", pattern) for pattern in patterns)
+    assert any(fnmatch("nested/course/Feedback Notes.docx", pattern) for pattern in patterns)

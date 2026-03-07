@@ -151,6 +151,7 @@ Use `foldermix init` to generate a commented starter `foldermix.toml` for common
 foldermix init --profile legal
 foldermix init --profile research --out ./configs/foldermix.toml
 foldermix init --profile support --force
+foldermix init --profile course-refresh --out ./foldermix.toml --force
 ```
 
 Available profiles:
@@ -159,6 +160,7 @@ Available profiles:
 - `research` - broad document coverage with OCR and email-only redaction.
 - `support` - ticket/runbook focused filters with full redaction defaults.
 - `engineering-docs` - technical docs profile with frontmatter stripping and no redaction.
+- `course-refresh` - teaching-material bundle profile that excludes grades, rosters, responses, feedback, and other student/admin paths by default.
 
 ## Workflow Recipes
 
@@ -184,6 +186,22 @@ find ./corpus -type f -print0 | foldermix pack ./corpus --config foldermix.toml 
 foldermix init --profile support --out foldermix.toml --force
 printf 'tickets/a.md\ntickets/b.log\n' | foldermix pack . --config foldermix.toml --stdin --format md --out support-context.md --report support-report.json
 ```
+
+### Course Refresh Bundle
+
+```bash
+foldermix init --profile course-refresh --out foldermix.toml --force
+foldermix pack ./previous-course --config foldermix.toml --format md --out course-refresh-context.md --report course-refresh-report.json
+```
+
+The `course-refresh` profile keeps teaching-material formats broad (`pdf`, `docx`, `pptx`, `ipynb`, `xlsx`, text/markup, structured text) while excluding common student/admin paths such as:
+
+- grades
+- rosters
+- responses
+- feedback
+- submissions
+- student-specific folders/files
 
 For a longer config-first walkthrough, see [docs/config-first-workflows.md](docs/config-first-workflows.md).
 For policy-focused operational guidance, see [docs/compliance-safety.md](docs/compliance-safety.md).
@@ -297,7 +315,7 @@ foldermix stats [OPTIONS] [PATH]
   --null
   --print-effective-config
 
-foldermix init --profile <legal|research|support|engineering-docs> [--out PATH] [--force]
+foldermix init --profile <legal|research|support|engineering-docs|course-refresh> [--out PATH] [--force]
 
 foldermix version
 ```

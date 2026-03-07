@@ -11,6 +11,7 @@ foldermix init --profile legal
 foldermix init --profile research --out ./configs/foldermix.toml
 foldermix init --profile support --force
 foldermix init --profile engineering-docs --out ./foldermix.toml --force
+foldermix init --profile course-refresh --out ./foldermix.toml --force
 ```
 
 Available profiles:
@@ -19,6 +20,7 @@ Available profiles:
 - `research`: broad file coverage, email redaction, OCR enabled.
 - `support`: operational formats, full redaction, OCR disabled.
 - `engineering-docs`: docs/code handoff defaults, no redaction, frontmatter stripping.
+- `course-refresh`: teaching-material bundle defaults with exclusions for grades, rosters, responses, feedback, submissions, and other student/admin paths.
 
 ## 2) Understand Resolution Order
 
@@ -102,6 +104,22 @@ find ./corpus -type f -print0 | foldermix pack ./corpus --config foldermix.toml 
 foldermix init --profile support --out foldermix.toml --force
 printf 'tickets/a.md\ntickets/b.log\n' | foldermix pack . --config foldermix.toml --stdin --format md --out support-context.md --report support-report.json
 ```
+
+### Course Refresh
+
+```bash
+foldermix init --profile course-refresh --out foldermix.toml --force
+foldermix pack ./previous-course --config foldermix.toml --format md --out course-refresh-context.md --report course-refresh-report.json
+```
+
+Default exclusions in the `course-refresh` profile target common course-admin noise:
+
+- grades
+- rosters
+- responses
+- feedback
+- submissions
+- student-specific folders/files
 
 ## Troubleshooting
 
