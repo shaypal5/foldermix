@@ -218,6 +218,91 @@ def test_xlsx_fallback_omits_empty_sheet_body(monkeypatch, tmp_path: Path) -> No
     assert result.content == "## Sheet: Sheet1\n\n## Sheet: Sheet2"
 
 
+def test_xlsx_fallback_skips_copy_of_sheet_by_default(monkeypatch, tmp_path: Path) -> None:
+    path = tmp_path / "f.xlsx"
+    path.write_text("placeholder", encoding="utf-8")
+
+    class _PrimaryWorksheet:
+        @staticmethod
+        def iter_rows(values_only: bool = True):
+            assert values_only is True
+            return [
+                ("Name", "ID", "Score"),
+                ("Alice", "123", "10"),
+                ("Bob", "456", "20"),
+            ]
+
+    class _SecondaryWorksheet:
+        @staticmethod
+        def iter_rows(values_only: bool = True):
+            assert values_only is True
+            return [
+                ("ID", "Score"),
+                ("123", "10"),
+                ("456", "20"),
+            ]
+
+    class _Workbook:
+        sheetnames = ["Scores", "Copy of Scores"]
+
+        @staticmethod
+        def __getitem__(name: str):
+            if name == "Scores":
+                return _PrimaryWorksheet()
+            if name == "Copy of Scores":
+                return _SecondaryWorksheet()
+            raise AssertionError(name)
+
+    fake_openpyxl = SimpleNamespace(load_workbook=lambda *_args, **_kwargs: _Workbook())
+    monkeypatch.setitem(sys.modules, "openpyxl", fake_openpyxl)
+
+    result = XlsxFallbackConverter().convert(path)
+    assert "## Sheet: Scores" in result.content
+    assert "## Sheet: Copy of Scores" not in result.content
+
+
+def test_xlsx_fallback_keeps_non_copy_sheet(monkeypatch, tmp_path: Path) -> None:
+    path = tmp_path / "f.xlsx"
+    path.write_text("placeholder", encoding="utf-8")
+
+    class _PrimaryWorksheet:
+        @staticmethod
+        def iter_rows(values_only: bool = True):
+            assert values_only is True
+            return [
+                ("Name", "ID", "Score"),
+                ("Alice", "123", "10"),
+            ]
+
+    class _SecondaryWorksheet:
+        @staticmethod
+        def iter_rows(values_only: bool = True):
+            assert values_only is True
+            return [
+                ("ID", "Score"),
+                ("999", "20"),
+            ]
+
+    class _Workbook:
+        sheetnames = ["Scores", "Detailed Scores"]
+
+        @staticmethod
+        def __getitem__(name: str):
+            if name == "Scores":
+                return _PrimaryWorksheet()
+            if name == "Detailed Scores":
+                return _SecondaryWorksheet()
+            raise AssertionError(name)
+
+    fake_openpyxl = SimpleNamespace(load_workbook=lambda *_args, **_kwargs: _Workbook())
+    monkeypatch.setitem(sys.modules, "openpyxl", fake_openpyxl)
+
+    result = XlsxFallbackConverter().convert(path)
+    assert "## Sheet: Scores" in result.content
+    assert "## Sheet: Detailed Scores" in result.content
+    assert "999\t20" in result.content
+
+
 def test_markitdown_convert(monkeypatch, tmp_path: Path) -> None:
     path = tmp_path / "f.pdf"
     path.write_text("placeholder", encoding="utf-8")

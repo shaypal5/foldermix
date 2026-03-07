@@ -114,6 +114,7 @@ foldermix version
 - **Smart filtering**: gitignore support, extension filters, glob patterns
 - **Sensitive file protection**: Automatically skips `.env`, keys, certificates
 - **Optional converters**: PDF (pypdf), OCR-enhanced PDF fallback (rapidocr + pypdfium2), Office docs (python-docx, openpyxl, python-pptx), markitdown
+- **Spreadsheet noise reduction**: XLSX fallback skips low-signal `Copy of ...` tabs by default
 - **Redaction**: Email and phone number redaction via `--redact`
 - **Line-level filtering**: Remove noisy lines via `--drop-line-containing`
 - **Minimum line length**: Drop short lines via `--min-line-length`

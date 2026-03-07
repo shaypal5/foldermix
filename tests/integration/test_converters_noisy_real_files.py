@@ -89,10 +89,10 @@ def test_noisy_pdf_hebrew_rtl_extraction_quality() -> None:
     assert "ם:דרישות קד" not in result.content
 
 
-@pytest.mark.xfail(reason="Tracked by #100: duplicate/copy workbook sheets are still emitted")
 def test_noisy_xlsx_copy_sheets_are_suppressed() -> None:
     pytest.importorskip("openpyxl")
     result = XlsxFallbackConverter().convert(FIXTURE_DIR / "noisy_grades.xlsx")
 
+    assert "## Sheet: ציונים" in result.content
     assert "## Sheet: Copy of ציונים" not in result.content
     assert "## Sheet: Copy of ציונים 1" not in result.content
