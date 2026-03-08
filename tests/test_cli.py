@@ -1177,6 +1177,33 @@ def test_preview_honors_pack_config_filter_overrides(tmp_path: Path) -> None:
     assert "SKIP_EXCLUDED_GLOB" in blocked_result.output
 
 
+def test_preview_builds_config_with_ipynb_include_outputs(monkeypatch, tmp_path: Path) -> None:
+    captured = {}
+    (tmp_path / "demo.ipynb").write_text('{"metadata":{},"cells":[]}', encoding="utf-8")
+
+    def fake_render_preview(config, records):
+        captured["config"] = config
+        captured["records"] = records
+        return "ok"
+
+    monkeypatch.setattr(packer_module, "render_preview", fake_render_preview)
+
+    result = runner.invoke(
+        app,
+        [
+            "preview",
+            str(tmp_path),
+            "demo.ipynb",
+            "--ipynb-include-outputs",
+            "--no-include-sha256",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert result.output == "ok"
+    assert captured["config"].ipynb_include_outputs is True
+
+
 def test_list_discovers_default_config(tmp_path: Path) -> None:
     config_path = tmp_path / "foldermix.toml"
     config_path.write_text(

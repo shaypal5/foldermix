@@ -5,8 +5,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from foldermix import packer
-from foldermix.config import PackConfig
+from foldermix.config import DEFAULT_INCLUDE_EXT, PackConfig
 from foldermix.converters.base import ConversionResult
+from foldermix.converters.ipynb import NotebookConverter
 from foldermix.scanner import FileRecord
 
 
@@ -22,6 +23,10 @@ class _RegistryOne:
 
     def get_converter(self, _ext: str):
         return self.converter
+
+
+def test_default_include_ext_contains_ipynb() -> None:
+    assert ".ipynb" in DEFAULT_INCLUDE_EXT
 
 
 def test_convert_record_without_converter(tmp_path: Path) -> None:
@@ -198,6 +203,32 @@ def test_convert_record_pdf_ocr_prefers_pdf_fallback_over_markitdown(
     assert item.converter_name == "pypdf"
     assert "from pypdf" in item.content
     assert "markitdown" not in item.content
+
+
+def test_convert_record_reconfigures_notebook_converter_from_pack_config(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "demo.ipynb"
+    path.write_text(
+        (
+            '{"metadata":{},"cells":['
+            '{"cell_type":"code","source":["print(1)\\n"],"outputs":['
+            '{"output_type":"stream","text":["1\\\\n"]}'
+            "]}]}"
+        ),
+        encoding="utf-8",
+    )
+
+    record = FileRecord(path=path, relpath="demo.ipynb", ext=".ipynb", size=1, mtime=0.0)
+    item = packer._convert_record(
+        record,
+        _RegistryOne(NotebookConverter(include_outputs=False)),
+        PackConfig(root=tmp_path, include_sha256=False, ipynb_include_outputs=True),
+    )
+
+    assert item.converter_name == "ipynb"
+    assert "#### Outputs" in item.content
+    assert "Output 1:" in item.content
 
 
 def test_convert_record_pdf_without_ocr_keeps_registry_converter(tmp_path: Path) -> None:
