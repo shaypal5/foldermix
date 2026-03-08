@@ -32,6 +32,19 @@ def _indent_block(text: str) -> str:
     return "\n".join(f"    {line}" if line else "" for line in text.splitlines())
 
 
+def _summarize_rich_output(output: dict[str, object]) -> str:
+    lines = [f"output_type: {output.get('output_type', 'unknown')}"]
+    data = output.get("data")
+    if isinstance(data, dict):
+        mime_types = ", ".join(sorted(str(key) for key in data))
+        if mime_types:
+            lines.append(f"data keys: {mime_types}")
+    metadata = output.get("metadata")
+    if isinstance(metadata, dict) and metadata:
+        lines.append(f"metadata keys: {', '.join(sorted(str(key) for key in metadata))}")
+    return _normalize_block("\n".join(lines))
+
+
 def _render_output(output: dict[str, object]) -> str:
     output_type = output.get("output_type")
     if output_type == "stream":
@@ -43,7 +56,7 @@ def _render_output(output: dict[str, object]) -> str:
             rendered = _normalize_block(_coerce_text(text_plain))
             if rendered:
                 return rendered
-        return _normalize_block(json.dumps(output, ensure_ascii=False, indent=2))
+        return _summarize_rich_output(output)
     if output_type == "error":
         traceback = output.get("traceback")
         if isinstance(traceback, list):
@@ -108,7 +121,9 @@ class NotebookConverter:
             section_parts = ["\n".join(code_lines)]
             if self.include_outputs and isinstance(outputs, list):
                 rendered_outputs = [
-                    rendered for output in outputs if (rendered := _render_output(output))
+                    rendered
+                    for output in outputs
+                    if isinstance(output, dict) and (rendered := _render_output(output))
                 ]
                 if rendered_outputs:
                     output_parts = ["#### Outputs"]

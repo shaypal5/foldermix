@@ -189,6 +189,26 @@ class TestNotebookConverter:
         assert "    if True:" in result.content
         assert "        print(1)" in result.content
 
+    def test_convert_notebook_trims_trailing_blank_lines_without_losing_content(
+        self, tmp_path: Path
+    ) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "trailing-blanks.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{"language_info":{"name":"python"}},"cells":['
+                '{"cell_type":"code","source":["print(1)\\n","\\n","   \\n"]}'
+                "]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter().convert(notebook)
+
+        assert "    print(1)" in result.content
+        assert "    \n\n" not in result.content
+
     def test_convert_notebook_covers_raw_custom_and_output_fallbacks(self, tmp_path: Path) -> None:
         from foldermix.converters.ipynb import NotebookConverter
 
@@ -213,10 +233,33 @@ class TestNotebookConverter:
         assert "raw note" in result.content
         assert "### Custom Cell 2" in result.content
         assert "custom payload" in result.content
-        assert '"output_type": "display_data"' in result.content
+        assert "output_type: display_data" in result.content
+        assert "data keys: application/json" in result.content
         assert "Trace 1" in result.content
         assert "Trace 2" in result.content
         assert '"output_type": "mystery"' in result.content
+
+    def test_convert_notebook_summarizes_empty_data_without_dumping_payloads(
+        self, tmp_path: Path
+    ) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "empty-data.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{},"cells":['
+                '{"cell_type":"code","source":["show()\\n"],"outputs":['
+                '{"output_type":"display_data","data":{},"metadata":{"collapsed":true}}'
+                "]}]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter(include_outputs=True).convert(notebook)
+
+        assert "output_type: display_data" in result.content
+        assert "\n    data keys:" not in result.content
+        assert "metadata keys: collapsed" in result.content
 
     def test_convert_notebook_error_without_traceback(self, tmp_path: Path) -> None:
         from foldermix.converters.ipynb import NotebookConverter
@@ -278,9 +321,34 @@ class TestNotebookConverter:
         result = NotebookConverter(include_outputs=True).convert(notebook)
 
         assert "### Code Cell 3" in result.content
-        assert '"output_type": "display_data"' in result.content
+        assert "output_type: display_data" in result.content
         assert "Error:" in result.content
         assert "#### Outputs" in result.content
+
+    def test_convert_notebook_skips_non_dict_outputs_and_summarizes_rich_payloads(
+        self, tmp_path: Path
+    ) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "rich-payloads.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{},"cells":['
+                '{"cell_type":"code","source":["show()\\n"],"outputs":['
+                '"skip-me",'
+                '{"output_type":"display_data","data":{"image/png":"AAAA","text/html":"<b>x</b>"},"metadata":{"width":100}}'
+                "]}]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter(include_outputs=True).convert(notebook)
+
+        assert "output_type: display_data" in result.content
+        assert "data keys: image/png, text/html" in result.content
+        assert "metadata keys: width" in result.content
+        assert '"image/png": "AAAA"' not in result.content
+        assert "skip-me" not in result.content
 
     def test_convert_notebook_skips_empty_rendered_outputs(self, tmp_path: Path) -> None:
         from foldermix.converters.ipynb import NotebookConverter
