@@ -905,6 +905,32 @@ def test_build_policy_stage_counts_ignores_non_string_stage_values() -> None:
     assert counts == {"convert": 1}
 
 
+def test_truncate_text_middle_returns_original_when_content_already_fits() -> None:
+    content, truncated = packer._truncate_text_middle("plain text", 64, "utf-8")
+
+    assert content == "plain text"
+    assert truncated is False
+
+
+def test_truncate_text_middle_preserves_valid_utf8_around_multibyte_boundaries() -> None:
+    content = "אבג🙂דהו🙂זחט"
+
+    truncated_content, truncated = packer._truncate_text_middle(content, 20, "utf-8")
+
+    assert truncated is True
+    assert "[TRUNCATED]" in truncated_content
+    assert "\ufffd" not in truncated_content
+    assert len(truncated_content.encode("utf-8")) <= 20
+
+
+def test_truncate_text_middle_handles_max_bytes_smaller_than_separator() -> None:
+    truncated_content, truncated = packer._truncate_text_middle("abcdef", 4, "utf-8")
+
+    assert truncated is True
+    assert truncated_content == b"\n\n..".decode("utf-8", errors="ignore")
+    assert len(truncated_content.encode("utf-8")) <= 4
+
+
 def test_pack_keeps_deterministic_order_after_parallel_conversion(
     tmp_path: Path, monkeypatch
 ) -> None:
