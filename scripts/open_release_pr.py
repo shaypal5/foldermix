@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import os
 import re
 import shutil
@@ -9,9 +10,6 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-
-from foldermix import packer
-from foldermix.config import PackConfig
 
 sys.dont_write_bytecode = True
 
@@ -57,9 +55,7 @@ def disallowed_worktree_changes(status_output: str) -> list[str]:
 
 
 def ensure_clean_worktree() -> None:
-    status = run(
-        ["git", "status", "--porcelain", "--untracked-files=all"], capture_output=True
-    )
+    status = run(["git", "status", "--porcelain", "--untracked-files=all"], capture_output=True)
     disallowed = disallowed_worktree_changes(status)
     if disallowed:
         joined = "\n".join(disallowed)
@@ -125,6 +121,13 @@ def normalize_root_path(text: str, project_dir: Path) -> str:
 
 
 def render_simple_project_snapshot(fmt: str, out_name: str) -> str:
+    import foldermix
+    import foldermix.packer as packer_module
+    from foldermix.config import PackConfig
+
+    importlib.reload(foldermix)
+    packer_module = importlib.reload(packer_module)
+
     with tempfile.TemporaryDirectory(prefix="foldermix-release-pr-") as tmp:
         base_tmp = Path(tmp)
         src = FIXTURE_DIR / "simple_project"
@@ -133,8 +136,8 @@ def render_simple_project_snapshot(fmt: str, out_name: str) -> str:
         normalize_fixture_newlines_to_lf(project_dir)
         set_fixed_mtime(project_dir)
 
-        original_utcnow_iso = packer.utcnow_iso
-        packer.utcnow_iso = lambda: FIXED_NOW_ISO
+        original_utcnow_iso = packer_module.utcnow_iso
+        packer_module.utcnow_iso = lambda: FIXED_NOW_ISO
         try:
             out_path = base_tmp / out_name
             config = PackConfig(
@@ -144,9 +147,9 @@ def render_simple_project_snapshot(fmt: str, out_name: str) -> str:
                 include_sha256=False,
                 workers=1,
             )
-            packer.pack(config)
+            packer_module.pack(config)
         finally:
-            packer.utcnow_iso = original_utcnow_iso
+            packer_module.utcnow_iso = original_utcnow_iso
 
         return normalize_root_path(out_path.read_text(encoding="utf-8"), project_dir)
 
@@ -160,9 +163,7 @@ def regenerate_expected_snapshots() -> list[Path]:
     ]
     written: list[Path] = []
     for fmt, out_name, expected_path in outputs:
-        expected_path.write_text(
-            render_simple_project_snapshot(fmt, out_name), encoding="utf-8"
-        )
+        expected_path.write_text(render_simple_project_snapshot(fmt, out_name), encoding="utf-8")
         written.append(expected_path)
     return written
 
@@ -261,9 +262,7 @@ def main() -> int:
     branch_name = f"auto/release-{new_version}"
     create_release_branch(branch_name)
 
-    PYPROJECT.write_text(
-        replace_project_version(pyproject_text, new_version), encoding="utf-8"
-    )
+    PYPROJECT.write_text(replace_project_version(pyproject_text, new_version), encoding="utf-8")
     fixture_paths = regenerate_expected_snapshots()
     run_release_checks()
     stage_release_files(fixture_paths)
