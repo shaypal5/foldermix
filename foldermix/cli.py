@@ -72,6 +72,7 @@ _PACK_PARAM_BY_KEY = {
     "strip_frontmatter": "strip_frontmatter",
     "include_sha256": "include_sha256",
     "include_toc": "include_toc",
+    "ipynb_include_outputs": "ipynb_include_outputs",
     "dedupe_content": "dedupe_content",
     "pdf_ocr": "pdf_ocr",
     "pdf_ocr_strict": "pdf_ocr_strict",
@@ -381,6 +382,11 @@ def pack_cmd(
         "--include-toc/--no-include-toc",
         help="Prepend a table of contents to Markdown output [default: include]",
     ),
+    ipynb_include_outputs: bool = typer.Option(
+        False,
+        "--ipynb-include-outputs/--no-ipynb-include-outputs",
+        help="Include Jupyter notebook cell outputs when converting `.ipynb` files [default: disabled]",
+    ),
     dedupe_content: bool = typer.Option(
         False,
         "--dedupe-content/--no-dedupe-content",
@@ -496,6 +502,7 @@ def pack_cmd(
         "strip_frontmatter": strip_frontmatter,
         "include_sha256": include_sha256,
         "include_toc": include_toc,
+        "ipynb_include_outputs": ipynb_include_outputs,
         "dedupe_content": dedupe_content,
         "pdf_ocr": pdf_ocr,
         "pdf_ocr_strict": pdf_ocr_strict,
@@ -1085,6 +1092,11 @@ def preview_cmd(
         "--include-toc/--no-include-toc",
         help="Include a TOC in Markdown output [default: include]",
     ),
+    ipynb_include_outputs: bool = typer.Option(
+        False,
+        "--ipynb-include-outputs/--no-ipynb-include-outputs",
+        help="Include Jupyter notebook cell outputs when converting `.ipynb` files [default: disabled]",
+    ),
     pdf_ocr: bool = typer.Option(
         False,
         "--pdf-ocr/--no-pdf-ocr",
@@ -1152,6 +1164,7 @@ def preview_cmd(
         "strip_frontmatter": strip_frontmatter,
         "include_sha256": include_sha256,
         "include_toc": include_toc,
+        "ipynb_include_outputs": ipynb_include_outputs,
         "dedupe_content": False,
         "pdf_ocr": pdf_ocr,
         "pdf_ocr_strict": pdf_ocr_strict,
@@ -1246,6 +1259,7 @@ def preview_cmd(
         strip_frontmatter=values["strip_frontmatter"],  # type: ignore[arg-type]
         include_sha256=values["include_sha256"],  # type: ignore[arg-type]
         include_toc=values["include_toc"],  # type: ignore[arg-type]
+        ipynb_include_outputs=values["ipynb_include_outputs"],  # type: ignore[arg-type]
         dedupe_content=values["dedupe_content"],  # type: ignore[arg-type]
         pdf_ocr=values["pdf_ocr"],  # type: ignore[arg-type]
         pdf_ocr_strict=values["pdf_ocr_strict"],  # type: ignore[arg-type]

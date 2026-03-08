@@ -47,6 +47,7 @@ DEFAULT_INCLUDE_EXT: list[str] = [
     ".docx",
     ".pptx",
     ".xlsx",
+    ".ipynb",
 ]
 
 DEFAULT_EXCLUDE_EXT: list[str] = [
@@ -142,6 +143,7 @@ class PackConfig:
     strip_frontmatter: bool = False
     include_sha256: bool = True
     include_toc: bool = True
+    ipynb_include_outputs: bool = False
     pdf_ocr: bool = False
     pdf_ocr_strict: bool = False
     policy_pack: str | None = None

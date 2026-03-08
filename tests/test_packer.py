@@ -188,7 +188,7 @@ def test_pack_continue_on_error_false_exits(tmp_path: Path, monkeypatch) -> None
     monkeypatch.setattr(
         packer,
         "_build_registry",
-        lambda: _SingleConverterRegistry(_AlwaysFailConverter()),
+        lambda _config: _SingleConverterRegistry(_AlwaysFailConverter()),
     )
     config = PackConfig(root=tmp_path, format="jsonl", workers=1, continue_on_error=False)
 
@@ -204,7 +204,7 @@ def test_pack_continue_on_error_true_writes_error_item(tmp_path: Path, monkeypat
     monkeypatch.setattr(
         packer,
         "_build_registry",
-        lambda: _SingleConverterRegistry(_AlwaysFailConverter()),
+        lambda _config: _SingleConverterRegistry(_AlwaysFailConverter()),
     )
     config = PackConfig(
         root=tmp_path,
@@ -461,7 +461,8 @@ def test_convert_record_reuses_precomputed_sha256(tmp_path: Path, monkeypatch) -
         packer, "sha256_file", lambda _path: (_ for _ in ()).throw(AssertionError("unused"))
     )
 
-    item = packer._convert_record(record, packer._build_registry(), PackConfig(root=tmp_path))
+    config = PackConfig(root=tmp_path)
+    item = packer._convert_record(record, packer._build_registry(config), config)
 
     assert item.sha256 == "precomputed"
 
@@ -928,7 +929,7 @@ def test_pack_keeps_deterministic_order_after_parallel_conversion(
             out.write("ok\n")
 
     monkeypatch.setattr(
-        packer, "_build_registry", lambda: _SingleConverterRegistry(_SlowConverter())
+        packer, "_build_registry", lambda _config: _SingleConverterRegistry(_SlowConverter())
     )
     monkeypatch.setattr(packer, "_get_writer", lambda *args, **kwargs: _CaptureWriter())
 

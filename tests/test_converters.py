@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from foldermix.converters.base import ConversionResult, ConverterRegistry
 from foldermix.converters.text import TextConverter
 
@@ -111,6 +113,362 @@ class TestMarkitdownConverter:
             assert conv.can_convert(".pptx") is True
             assert conv.can_convert(".xlsx") is True
             assert conv.can_convert(".txt") is False
+
+
+class TestNotebookConverter:
+    def test_can_convert_ipynb(self) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        converter = NotebookConverter()
+        assert converter.can_convert(".ipynb") is True
+        assert converter.can_convert(".txt") is False
+
+    def test_convert_notebook_without_outputs(self, tmp_path: Path) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "demo.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{"language_info":{"name":"python"}},"cells":['
+                '{"cell_type":"markdown","source":["# Title\\n","Intro"]},'
+                '{"cell_type":"code","source":["print(1)\\n"],"outputs":['
+                '{"output_type":"stream","name":"stdout","text":["1\\\\n"]}]}]}'
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter(include_outputs=False).convert(notebook)
+
+        assert "### Markdown Cell 1" in result.content
+        assert "### Code Cell 2" in result.content
+        assert "Language: python" in result.content
+        assert "    print(1)" in result.content
+        assert "#### Outputs" not in result.content
+        assert result.converter_name == "ipynb"
+
+    def test_convert_notebook_with_outputs(self, tmp_path: Path) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "demo.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{"language_info":{"name":"python"}},"cells":['
+                '{"cell_type":"code","source":["print(1)\\n"],"outputs":['
+                '{"output_type":"stream","name":"stdout","text":["1\\\\n"]},'
+                '{"output_type":"execute_result","data":{"text/plain":["2"]}}]}]}'
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter(include_outputs=True).convert(notebook)
+
+        assert "#### Outputs" in result.content
+        assert "Output 1:" in result.content
+        assert "Output 2:" in result.content
+        assert "    1" in result.content
+        assert "    2" in result.content
+        assert "```text" not in result.content
+        assert "1" in result.content
+        assert "2" in result.content
+
+    def test_convert_notebook_preserves_leading_indentation(self, tmp_path: Path) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "indented.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{"language_info":{"name":"python"}},"cells":['
+                '{"cell_type":"code","source":["    if True:\\n","        print(1)\\n"]}'
+                "]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter().convert(notebook)
+
+        assert "    if True:" in result.content
+        assert "        print(1)" in result.content
+
+    def test_convert_notebook_trims_trailing_blank_lines_without_losing_content(
+        self, tmp_path: Path
+    ) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "trailing-blanks.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{"language_info":{"name":"python"}},"cells":['
+                '{"cell_type":"code","source":["print(1)\\n","\\n","   \\n"]}'
+                "]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter().convert(notebook)
+
+        assert "    print(1)" in result.content
+        assert "    \n\n" not in result.content
+
+    def test_convert_notebook_covers_raw_custom_and_output_fallbacks(self, tmp_path: Path) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "rich.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{},"cells":['
+                '{"cell_type":"raw","source":["  raw note  "]},'
+                '{"cell_type":"custom","source":["custom payload"]},'
+                '{"cell_type":"code","source":["x = 1\\n"],"outputs":['
+                '{"output_type":"display_data","data":{"application/json":{"value":1}}},'
+                '{"output_type":"error","ename":"ValueError","evalue":"bad","traceback":["Trace 1","Trace 2"]},'
+                '{"output_type":"mystery","payload":{"ok":true}}'
+                "]}]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter(include_outputs=True).convert(notebook)
+
+        assert "### Raw Cell 1" in result.content
+        assert "raw note" in result.content
+        assert "### Custom Cell 2" in result.content
+        assert "custom payload" in result.content
+        assert "output_type: display_data" in result.content
+        assert "data keys: application/json" in result.content
+        assert "Trace 1" in result.content
+        assert "Trace 2" in result.content
+        assert "output_type: mystery" in result.content
+        assert "top-level keys: payload" in result.content
+        assert '"ok": true' not in result.content
+
+    def test_convert_notebook_summarizes_empty_data_without_dumping_payloads(
+        self, tmp_path: Path
+    ) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "empty-data.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{},"cells":['
+                '{"cell_type":"code","source":["show()\\n"],"outputs":['
+                '{"output_type":"display_data","data":{},"metadata":{"collapsed":true}}'
+                "]}]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter(include_outputs=True).convert(notebook)
+
+        assert "output_type: display_data" in result.content
+        assert "\n    data keys:" not in result.content
+        assert "metadata keys: collapsed" in result.content
+
+    def test_convert_notebook_error_without_traceback(self, tmp_path: Path) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "errors.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{},"cells":['
+                '{"cell_type":"code","source":["run()\\n"],"outputs":['
+                '{"output_type":"error","ename":"RuntimeError","evalue":"boom"}'
+                "]}]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter(include_outputs=True).convert(notebook)
+
+        assert "RuntimeError: boom" in result.content
+
+    def test_convert_notebook_ignores_non_dict_cells_and_empty_content(
+        self, tmp_path: Path
+    ) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "sparse.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{},"cells":['
+                '"skip-me",'
+                '{"cell_type":"markdown","source":42},'
+                '{"cell_type":"code","source":"","outputs":[]}'
+                "]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter(include_outputs=False).convert(notebook)
+
+        assert result.content == ""
+
+    def test_convert_notebook_covers_empty_branches(self, tmp_path: Path) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "branches.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":"not-a-dict","cells":['
+                '{"cell_type":"raw","source":""},'
+                '{"cell_type":"custom","source":""},'
+                '{"cell_type":"code","source":"","outputs":['
+                '{"output_type":"display_data","data":"not-a-dict"},'
+                '{"output_type":"error","traceback":["","   "]},'
+                '{"output_type":"stream","text":["","   "]}'
+                "]}]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter(include_outputs=True).convert(notebook)
+
+        assert "### Code Cell 3" in result.content
+        assert "output_type: display_data" in result.content
+        assert "Error:" in result.content
+        assert "#### Outputs" in result.content
+
+    def test_convert_notebook_skips_non_dict_outputs_and_summarizes_rich_payloads(
+        self, tmp_path: Path
+    ) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "rich-payloads.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{},"cells":['
+                '{"cell_type":"code","source":["show()\\n"],"outputs":['
+                '"skip-me",'
+                '{"output_type":"display_data","data":{"image/png":"AAAA","text/html":"<b>x</b>"},"metadata":{"width":100}}'
+                "]}]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter(include_outputs=True).convert(notebook)
+
+        assert "output_type: display_data" in result.content
+        assert "data keys: image/png, text/html" in result.content
+        assert "metadata keys: width" in result.content
+        assert '"image/png": "AAAA"' not in result.content
+        assert "skip-me" not in result.content
+
+    def test_convert_notebook_reads_utf8_bom_independent_of_text_encoding(
+        self, tmp_path: Path
+    ) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "bom.ipynb"
+        notebook.write_bytes(
+            ('\ufeff{"metadata":{},"cells":[{"cell_type":"markdown","source":["שלום"]}]}').encode()
+        )
+
+        result = NotebookConverter().convert(notebook, encoding="latin-1")
+
+        assert "### Markdown Cell 1" in result.content
+        assert "שלום" in result.content
+
+    def test_convert_notebook_treats_update_display_data_as_rich_output(
+        self, tmp_path: Path
+    ) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "update-display.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{},"cells":['
+                '{"cell_type":"code","source":["show()\\n"],"outputs":['
+                '{"output_type":"update_display_data","data":{"image/png":"AAAA","text/html":"<b>x</b>"},"metadata":{"width":100}}'
+                "]}]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter(include_outputs=True).convert(notebook)
+
+        assert "output_type: update_display_data" in result.content
+        assert "data keys: image/png, text/html" in result.content
+        assert "metadata keys: width" in result.content
+        assert '"image/png": "AAAA"' not in result.content
+
+    def test_convert_notebook_summarizes_unknown_outputs_without_dumping_payloads(
+        self, tmp_path: Path
+    ) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "unknown-output.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{},"cells":['
+                '{"cell_type":"code","source":["show()\\n"],"outputs":['
+                '{"output_type":"vendor_blob","payload":"AAAA","data":{"image/png":"BBBB"},"metadata":{"width":100}}'
+                "]}]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter(include_outputs=True).convert(notebook)
+
+        assert "output_type: vendor_blob" in result.content
+        assert "top-level keys: data, metadata, payload" in result.content
+        assert "data keys: image/png" in result.content
+        assert "metadata keys: width" in result.content
+        assert '"payload": "AAAA"' not in result.content
+
+    def test_convert_notebook_summarizes_unknown_output_without_extra_keys(
+        self, tmp_path: Path
+    ) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "unknown-minimal.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{},"cells":['
+                '{"cell_type":"code","source":["show()\\n"],"outputs":['
+                '{"output_type":"vendor_blob"}'
+                "]}]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter(include_outputs=True).convert(notebook)
+
+        assert "output_type: vendor_blob" in result.content
+        assert "top-level keys:" not in result.content
+
+    def test_convert_notebook_skips_empty_rendered_outputs(self, tmp_path: Path) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "empty-outputs.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{},"cells":['
+                '{"cell_type":"code","source":"",'
+                '"outputs":[{"output_type":"stream","text":["","   "]}]}'
+                "]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter(include_outputs=True).convert(notebook)
+
+        assert result.content == ""
+
+    def test_convert_notebook_validates_root_and_cells(self, tmp_path: Path) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        bad_root = tmp_path / "bad-root.ipynb"
+        bad_root.write_text('["not", "an", "object"]', encoding="utf-8")
+
+        bad_cells = tmp_path / "bad-cells.ipynb"
+        bad_cells.write_text('{"metadata":{},"cells":"oops"}', encoding="utf-8")
+
+        converter = NotebookConverter()
+
+        with pytest.raises(RuntimeError, match="Notebook root must be a JSON object"):
+            converter.convert(bad_root)
+
+        with pytest.raises(RuntimeError, match="Notebook must contain a list of cells"):
+            converter.convert(bad_cells)
 
 
 class TestPdfFallbackConverter:

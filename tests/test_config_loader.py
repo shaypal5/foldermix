@@ -564,6 +564,20 @@ def test_private_coercion_helpers_cover_optional_and_unsupported_keys() -> None:
     assert errors == [f"{where}.unsupported: unsupported key"]
 
 
+def test_load_command_config_accepts_ipynb_include_outputs(tmp_path: Path) -> None:
+    config_path = tmp_path / "foldermix.toml"
+    config_path.write_text("[pack]\nipynb_include_outputs = true\n", encoding="utf-8")
+
+    values, used_path = load_command_config(
+        "pack",
+        root=tmp_path,
+        config_path=config_path,
+    )
+
+    assert values["ipynb_include_outputs"] is True
+    assert used_path == config_path
+
+
 def test_load_command_config_accepts_policy_rules_tables(tmp_path: Path) -> None:
     config_path = tmp_path / "foldermix.toml"
     config_path.write_text(

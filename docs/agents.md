@@ -102,7 +102,7 @@ class Converter(Protocol):
     def convert(self, path: Path, encoding: str = "utf-8") -> ConversionResult: ...
 ```
 
-Optional converters (`pdf`, `office`, `markitdown`) are always added to the registry, but they only become active when their optional dependencies (extras) are installed (otherwise their `can_convert()` methods return `False`, making them effective no-ops). The plain-text converter is always available as a fallback.
+Optional converters (`pdf`, `office`, `markitdown`) are always added to the registry, but they only become active when their optional dependencies (extras) are installed (otherwise their `can_convert()` methods return `False`, making them effective no-ops). The plain-text converter is always available as a fallback. `.ipynb` notebooks are supported by a built-in converter, with pack/preview config controlling whether cell outputs are included.
 
 ---
 
