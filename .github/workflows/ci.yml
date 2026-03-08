@@ -195,7 +195,15 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,all]"
       - name: Full Test Suite (Coverage Gate)
-        run: python -m pytest --cov-report=xml
+        run: python -m pytest --cov=foldermix --cov-report=xml --cov-report=
+      - name: Upload raw coverage data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-agent-context-coverage-ubuntu-latest-py3.12
+          path: .coverage*
+          include-hidden-files: true
+          if-no-files-found: ignore
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
@@ -203,6 +211,25 @@ jobs:
           fail_ci_if_error: true
           slug: foldermix/foldermix
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  pr-agent-context:
+    name: PR agent context
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    needs: [lint, smoke, minimal-deps, package-smoke, policy-integration-matrix, full]
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    uses: shaypal5/pr-agent-context/.github/workflows/pr-agent-context.yml@v1
+    with:
+      tool_ref: v1
+      target_patch_coverage: "100"
+      include_review_comments: true
+      include_failing_jobs: true
+      include_patch_coverage: true
+      coverage_artifact_prefix: pr-agent-context-coverage
+      prompt_template_file: .github/pr-agent-context-template.md
+      debug_artifacts: true
 
   publish-pypi:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
