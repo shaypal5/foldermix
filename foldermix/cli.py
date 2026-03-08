@@ -384,7 +384,7 @@ def pack_cmd(
     ),
     ipynb_include_outputs: bool = typer.Option(
         False,
-        "--ipynb-include-outputs/--ipynb-no-include-outputs",
+        "--ipynb-include-outputs/--no-ipynb-include-outputs",
         help="Include Jupyter notebook cell outputs when converting `.ipynb` files [default: disabled]",
     ),
     dedupe_content: bool = typer.Option(
@@ -1094,7 +1094,7 @@ def preview_cmd(
     ),
     ipynb_include_outputs: bool = typer.Option(
         False,
-        "--ipynb-include-outputs/--ipynb-no-include-outputs",
+        "--ipynb-include-outputs/--no-ipynb-include-outputs",
         help="Include Jupyter notebook cell outputs when converting `.ipynb` files [default: disabled]",
     ),
     pdf_ocr: bool = typer.Option(

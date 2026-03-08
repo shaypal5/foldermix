@@ -141,8 +141,8 @@ class TestNotebookConverter:
 
         assert "### Markdown Cell 1" in result.content
         assert "### Code Cell 2" in result.content
-        assert "```python" in result.content
-        assert "print(1)" in result.content
+        assert "Language: python" in result.content
+        assert "    print(1)" in result.content
         assert "#### Outputs" not in result.content
         assert result.converter_name == "ipynb"
 
@@ -163,9 +163,31 @@ class TestNotebookConverter:
         result = NotebookConverter(include_outputs=True).convert(notebook)
 
         assert "#### Outputs" in result.content
-        assert "```text" in result.content
+        assert "Output 1:" in result.content
+        assert "Output 2:" in result.content
+        assert "    1" in result.content
+        assert "    2" in result.content
+        assert "```text" not in result.content
         assert "1" in result.content
         assert "2" in result.content
+
+    def test_convert_notebook_preserves_leading_indentation(self, tmp_path: Path) -> None:
+        from foldermix.converters.ipynb import NotebookConverter
+
+        notebook = tmp_path / "indented.ipynb"
+        notebook.write_text(
+            (
+                '{"metadata":{"language_info":{"name":"python"}},"cells":['
+                '{"cell_type":"code","source":["    if True:\\n","        print(1)\\n"]}'
+                "]}"
+            ),
+            encoding="utf-8",
+        )
+
+        result = NotebookConverter().convert(notebook)
+
+        assert "    if True:" in result.content
+        assert "        print(1)" in result.content
 
     def test_convert_notebook_covers_raw_custom_and_output_fallbacks(self, tmp_path: Path) -> None:
         from foldermix.converters.ipynb import NotebookConverter

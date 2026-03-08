@@ -17,7 +17,19 @@ def _coerce_text(value: object) -> str:
 
 def _normalize_block(text: str) -> str:
     lines = [normalize_whitespace_line(line) for line in text.splitlines()]
-    return "\n".join(lines).strip()
+    start = 0
+    end = len(lines)
+    while start < end and not lines[start].strip():
+        start += 1
+    while end > start and not lines[end - 1].strip():
+        end -= 1
+    if start >= end:
+        return ""
+    return "\n".join(lines[start:end])
+
+
+def _indent_block(text: str) -> str:
+    return "\n".join(f"    {line}" if line else "" for line in text.splitlines())
 
 
 def _render_output(output: dict[str, object]) -> str:
@@ -90,15 +102,26 @@ class NotebookConverter:
                     sections.append(f"### {cell_type.title()} Cell {index}\n\n{source}")
                 continue
 
-            code_lines = [f"### Code Cell {index}", "", f"```{language}", source, "```"]
+            code_lines = [f"### Code Cell {index}", "", f"Language: {language}"]
+            if source:
+                code_lines.extend(["", _indent_block(source)])
             section_parts = ["\n".join(code_lines)]
             if self.include_outputs and isinstance(outputs, list):
                 rendered_outputs = [
                     rendered for output in outputs if (rendered := _render_output(output))
                 ]
                 if rendered_outputs:
-                    output_block = "\n\n".join(rendered_outputs)
-                    section_parts.append(f"#### Outputs\n\n```text\n{output_block}\n```")
+                    output_parts = ["#### Outputs"]
+                    for output_index, rendered_output in enumerate(rendered_outputs, start=1):
+                        output_parts.extend(
+                            [
+                                "",
+                                f"Output {output_index}:",
+                                "",
+                                _indent_block(rendered_output),
+                            ]
+                        )
+                    section_parts.append("\n".join(output_parts))
             if source or len(section_parts) > 1:
                 sections.append("\n\n".join(section_parts))
 
