@@ -50,6 +50,7 @@ On merge to `main` with a version bump:
 
 - `publish-pypi` publishes to PyPI.
 - `update-homebrew-tap` updates `foldermix/homebrew-foldermix` formula when `HOMEBREW_TAP_GITHUB_TOKEN` is configured.
+- For a direct `homebrew/core` submission path, use [docs/homebrew-core.md](homebrew-core.md).
 
 ## Homebrew Tap Troubleshooting
 

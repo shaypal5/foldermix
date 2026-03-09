@@ -697,6 +697,8 @@ A release is triggered by merging a PR to `main` that bumps the `version` field 
 
 > **Note:** If `HOMEBREW_TAP_GITHUB_TOKEN` is not configured, both tap update and Homebrew release-consumer smoke are skipped. Configure it as a repository secret with write access to `foldermix/homebrew-foldermix` before the first release.
 
+For maintainers preparing a possible `homebrew/core` submission, see [docs/homebrew-core.md](docs/homebrew-core.md).
+
 ## License
 
 See [LICENSE](LICENSE).
